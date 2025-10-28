@@ -1,7 +1,0 @@
-#Сгенерировать миграцию
-alembic revision --autogenerate -m "init tables"
-
-#Применить миграцию
-alembic upgrade head
-
-& "C:\Program Files\PostgreSQL\17\bin\psql.exe" psql -U postgres -d victor_db
