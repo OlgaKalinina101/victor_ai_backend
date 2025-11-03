@@ -16,7 +16,7 @@ from infrastructure.vector_store.helpers import MemoryProcessor
 from models.user_enums import Gender
 from settings import settings
 from tools.playlist.helpers import get_artists_by_description, get_tracks_by_artist, is_single_artist_by_description, \
-    get_single_track_by_artist, get_track_id_by_artist_and_title
+    get_single_track_by_artist, get_track_id_by_artist_and_title, get_track_atmosphere_by_id
 
 logger = setup_logger("playlist_tool")
 
@@ -317,6 +317,20 @@ class PlaylistContextBuilder:
                 if track_id:
                     track_data["track_id"] = track_id
                     logger.info(f"Найден track_id: {track_id}")
+                    raw_data = get_track_atmosphere_by_id(db_session, self.account_id, track_id)
+
+                    track_metadata = f"""
+                    Песня: {raw_data['title']}
+                    Исполнитель: {raw_data['artist']}
+                    Жанр: {raw_data['genre']} 
+                    Температура: {raw_data['temperature']}
+                    Энергия: {raw_data['energy']}
+                    Возьми отсюда то, что откликается тебе. 
+                    """
+                    prompt_stage_four = self._get_playlist_prompt(self.prompt_template, "stage_four").format(
+                        track_metadata=track_metadata,
+                        time_context=self.time_context,
+                    )
                 else:
                     logger.warning(
                         f"🚨 track_id не найден для: "
@@ -324,13 +338,12 @@ class PlaylistContextBuilder:
                         f"title='{track_data['track']}'"
                     )
                     track_data["track_id"] = None
+                    prompt_stage_four=""
             else:
                 track_data["track_id"] = None
+                prompt_stage_four=""
 
-            prompt_stage_four = self._get_playlist_prompt(self.prompt_template, "stage_four").format(
-                track_metadata=f"{artist_data['artist']} — {track_data['track']}",
-                time_context=self.time_context,
-            )
+
             logger.info(f"Build завершён успешно: {track_data}")
             return track_data, prompt_stage_four
 
@@ -344,6 +357,9 @@ class PlaylistContextBuilder:
 
 if __name__ == "__main__":
     builder = PlaylistContextBuilder(account_id="test_user")
+    db = Database()
+    session = db.get_session()
+
     track_data, prompt = asyncio.run(builder.build())
     print(track_data)
     print(prompt)

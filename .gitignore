@@ -1,5 +1,7 @@
 # Виртуальное окружение
 .venv/
+.idea/
+__pycache__/
 
 # Логи
 logs/
@@ -10,11 +12,14 @@ infrastructure/vector_store/logs/
 firebase_tokens.json
 tokens.json
 infrastructure/firebase_tokens.json
+infrastructure/firebase/victoraiproject-a706f0bbcb99.json
+README.md
 
 # Базы данных и кэш
 infrastructure/vector_store/4ae1564f-4c40-4b35-9652-8ef557f21114/
 infrastructure/vector_store/chroma.sqlite3
 tests/MessageAnalyzer/infrastructure/vector_store/chroma.sqlite3
+help_database
 
 # Миграции Alembic
 # Обычно миграции Alembic грузят в репозиторий, чтобы все разработчики использовали одни и те же миграции.

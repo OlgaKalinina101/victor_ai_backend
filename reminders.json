@@ -164,10 +164,10 @@
     "user_id": "test_user",
     "title": "отпроситься у руководителя, завтра к нотариусу в 18:00",
     "text": "отпроситься у руководителя, завтра к нотариусу в 18:00",
-    "datetime": "2025-10-29T09:00:00",
+    "datetime": "2025-10-29T13:00:00",
     "created_at": "2025-10-21T13:50:09.078419",
     "repeat_weekly": false,
-    "done": false
+    "done": true
   },
   {
     "id": "564da07b-4105-47cd-8476-1c5e3c3b97fd",
@@ -177,7 +177,7 @@
     "datetime": "2025-10-30T15:00:00",
     "created_at": "2025-10-21T13:50:09.078419",
     "repeat_weekly": false,
-    "done": false
+    "done": true
   },
   {
     "id": "8cec11cd-c4e1-4935-a3ba-7d6ca8f69787",
@@ -227,17 +227,17 @@
     "datetime": "2025-10-29T07:00:00",
     "created_at": "2025-10-28T16:20:55.120703",
     "repeat_weekly": false,
-    "done": false
+    "done": true
   },
   {
     "id": "73c4202a-134b-4df4-a377-68041d744a8f",
     "user_id": "test_user",
     "title": "Пора исправить воспроизведение музыки в плейлисте",
     "text": "Пора исправить воспроизведение музыки в плейлисте",
-    "datetime": "2025-10-31T17:00:00",
+    "datetime": "2025-10-31T23:00:00",
     "created_at": "2025-10-28T16:22:29.880010",
     "repeat_weekly": false,
-    "done": false
+    "done": true
   },
   {
     "id": "c4ff8df5-a9c8-4dd7-95ce-51b7e72f2c52",
@@ -247,6 +247,6 @@
     "datetime": "2025-10-29T08:00:00",
     "created_at": "2025-10-28T16:31:52.184447",
     "repeat_weekly": false,
-    "done": false
+    "done": true
   }
 ]

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from infrastructure.database.models import MusicTrack, TrackUserDescription, EnergyDescription, TemperatureDescription
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -291,4 +291,48 @@ def get_track_id_by_artist_and_title(
 
     except Exception as e:
         logger.error(f"Ошибка при поиске track_id: {e}")
+        return None
+
+def get_track_atmosphere_by_id(
+    session: Session,
+    account_id: str,
+    track_id: int
+) -> Optional[Dict[str, str]]:
+    """
+    Возвращает реальные данные трека + атмосферу по track_id.
+    """
+    try:
+        result = (
+            session.query(
+                MusicTrack.title,
+                MusicTrack.artist,
+                MusicTrack.genre,
+                TrackUserDescription.energy_description,        # ← ИСПРАВЛЕНО
+                TrackUserDescription.temperature_description   # ← ИСПРАВЛЕНО
+            )
+            .join(TrackUserDescription, MusicTrack.id == TrackUserDescription.track_id)
+            .filter(
+                TrackUserDescription.account_id == account_id,
+                MusicTrack.id == track_id
+            )
+            .first()
+        )
+
+        if not result:
+            logger.warning(f"Трек не найден: track_id={track_id}, account_id={account_id}")
+            return None
+
+        title, artist, genre, energy_enum, temp_enum = result
+
+        return {
+            "title": title or "Unknown Track",
+            "artist": artist or "Unknown Artist",
+            "genre": genre or "unknown",
+            "energy": energy_enum.value if energy_enum else "unknown",  # ← .value
+            "temperature": temp_enum.value if temp_enum else "unknown",  # ← .value
+            "track_id": track_id
+        }
+
+    except Exception as e:
+        logger.error(f"Ошибка в get_track_atmosphere_by_id: {e}")
         return None

@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PlaceMetadata>
+    <PlaceTypes>
+        <PlaceType>
+            <Name>CAFE</Name>
+            <Ru>Кафе / Кофейня</Ru>
+            <En>Cafe</En>
+            <Emoji>☕</Emoji>
+            <Color>#6F4E37</Color>
+            <Category>food</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>RESTAURANT</Name>
+            <Ru>Ресторан</Ru>
+            <En>Restaurant</En>
+            <Emoji>🍽️</Emoji>
+            <Color>#E74C3C</Color>
+            <Category>food</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>BAR</Name>
+            <Ru>Бар / Паб</Ru>
+            <En>Bar / Pub</En>
+            <Emoji>🍺</Emoji>
+            <Color>#F39C12</Color>
+            <Category>food</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>FAST_FOOD</Name>
+            <Ru>Фастфуд</Ru>
+            <En>Fast Food</En>
+            <Emoji>🍔</Emoji>
+            <Color>#E67E22</Color>
+            <Category>food</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>PARK</Name>
+            <Ru>Парк</Ru>
+            <En>Park</En>
+            <Emoji>🌳</Emoji>
+            <Color>#27AE60</Color>
+            <Category>nature</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>MUSEUM</Name>
+            <Ru>Музей</Ru>
+            <En>Museum</En>
+            <Emoji>🏛️</Emoji>
+            <Color>#8E44AD</Color>
+            <Category>culture</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>CINEMA</Name>
+            <Ru>Кинотеатр</Ru>
+            <En>Cinema</En>
+            <Emoji>🎬</Emoji>
+            <Color>#2C3E50</Color>
+            <Category>entertainment</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>THEATRE</Name>
+            <Ru>Театр</Ru>
+            <En>Theatre</En>
+            <Emoji>🎭</Emoji>
+            <Color>#9B59B6</Color>
+            <Category>culture</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>LIBRARY</Name>
+            <Ru>Библиотека</Ru>
+            <En>Library</En>
+            <Emoji>📚</Emoji>
+            <Color>#3498DB</Color>
+            <Category>culture</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>GYM</Name>
+            <Ru>Фитнес / Спортзал</Ru>
+            <En>Gym</En>
+            <Emoji>🏋️</Emoji>
+            <Color>#E74C3C</Color>
+            <Category>sport</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>PHARMACY</Name>
+            <Ru>Аптека</Ru>
+            <En>Pharmacy</En>
+            <Emoji>💊</Emoji>
+            <Color>#E91E63</Color>
+            <Category>health</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>HOSPITAL</Name>
+            <Ru>Больница</Ru>
+            <En>Hospital</En>
+            <Emoji>🏥</Emoji>
+            <Color>#C0392B</Color>
+            <Category>health</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>SHOPPING_MALL</Name>
+            <Ru>Торговый центр</Ru>
+            <En>Shopping Mall</En>
+            <Emoji>🛍️</Emoji>
+            <Color>#9B59B6</Color>
+            <Category>shop</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>SUPERMARKET</Name>
+            <Ru>Супермаркет</Ru>
+            <En>Supermarket</En>
+            <Emoji>🛒</Emoji>
+            <Color>#2980B9</Color>
+            <Category>shop</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>BOOKSTORE</Name>
+            <Ru>Книжный магазин</Ru>
+            <En>Bookstore</En>
+            <Emoji>📖</Emoji>
+            <Color>#8D6E63</Color>
+            <Category>shop</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>BENCH</Name>
+            <Ru>Скамейка</Ru>
+            <En>Bench</En>
+            <Emoji>🪑</Emoji>
+            <Color>#7F8C8D</Color>
+            <Category>rest</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>DRINKING_WATER</Name>
+            <Ru>Питьевая вода</Ru>
+            <En>Drinking Water</En>
+            <Emoji>🚰</Emoji>
+            <Color>#3498DB</Color>
+            <Category>utility</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>BAKERY</Name>
+            <Ru>Пекарня</Ru>
+            <En>Bakery</En>
+            <Emoji>🥖</Emoji>
+            <Color>#F1C40F</Color>
+            <Category>food</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>CONVENIENCE</Name>
+            <Ru>Мини-маркет</Ru>
+            <En>Convenience Store</En>
+            <Emoji>🏪</Emoji>
+            <Color>#95A5A6</Color>
+            <Category>shop</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>ATTRACTION</Name>
+            <Ru>Достопримечательность</Ru>
+            <En>Attraction</En>
+            <Emoji>⭐</Emoji>
+            <Color>#F39C12</Color>
+            <Category>culture</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>SPORTS_CENTRE</Name>
+            <Ru>Спорткомплекс</Ru>
+            <En>Sports Centre</En>
+            <Emoji>🏟️</Emoji>
+            <Color>#27AE60</Color>
+            <Category>sport</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>FITNESS_CENTRE</Name>
+            <Ru>Фитнес-центр</Ru>
+            <En>Fitness Centre</En>
+            <Emoji>💪</Emoji>
+            <Color>#E74C3C</Color>
+            <Category>sport</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>SWIMMING_POOL</Name>
+            <Ru>Бассейн</Ru>
+            <En>Swimming Pool</En>
+            <Emoji>🏊</Emoji>
+            <Color>#3498DB</Color>
+            <Category>sport</Category>
+        </PlaceType>
+        <PlaceType>
+            <Name>BEACH</Name>
+            <Ru>Пляж</Ru>
+            <En>Beach</En>
+            <Emoji>🏖️</Emoji>
+            <Color>#F1C40F</Color>
+            <Category>nature</Category>
+        </PlaceType>
+    </PlaceTypes>
+    <Amenities>
+        <Amenity>
+            <Name>WIFI</Name>
+            <Ru>Wi-Fi</Ru>
+            <En>Wi-Fi</En>
+            <Emoji>📶</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>PARKING</Name>
+            <Ru>Парковка</Ru>
+            <En>Parking</En>
+            <Emoji>🅿️</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>WHEELCHAIR_ACCESS</Name>
+            <Ru>Доступ для колясок</Ru>
+            <En>Wheelchair Access</En>
+            <Emoji>♿</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>OUTDOOR_SEATING</Name>
+            <Ru>Летняя веранда</Ru>
+            <En>Outdoor Seating</En>
+            <Emoji>☀️</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>PET_FRIENDLY</Name>
+            <Ru>С питомцами</Ru>
+            <En>Pet-friendly</En>
+            <Emoji>🐕</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>CARD_PAYMENT</Name>
+            <Ru>Оплата картой</Ru>
+            <En>Card Payment</En>
+            <Emoji>💳</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>DELIVERY</Name>
+            <Ru>Доставка</Ru>
+            <En>Delivery</En>
+            <Emoji>🚚</Emoji>
+        </Amenity>
+        <Amenity>
+            <Name>TAKEAWAY</Name>
+            <Ru>На вынос</Ru>
+            <En>Takeaway</En>
+            <Emoji>🥡</Emoji>
+        </Amenity>
+    </Amenities>
+</PlaceMetadata>

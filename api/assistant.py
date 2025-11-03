@@ -3,17 +3,20 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import yaml
 from fastapi import APIRouter, Request, HTTPException, Query
+from geoalchemy2.functions import ST_AsGeoJSON
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse, StreamingResponse
 
 from api.helpers import convert_message_history, load_serialized_session_context, get_provider_by_model, \
     get_energy_by_value, get_temperature_by_value
 from infrastructure.context_store.session_context_store import SessionContextStore
-from infrastructure.database.database_enums import EnergyDescription, TemperatureDescription
+
 from infrastructure.database.models import TrackUserDescription, MusicTrack
 from infrastructure.database.repositories import save_diary, get_model_usage, get_music_tracks_with_descriptions, \
     get_track_description, save_track_description
@@ -29,6 +32,7 @@ from infrastructure.pushi.reminders_sender import check_and_send_reminders_pushi
 from infrastructure.utils.io_utils import yaml_safe_load
 from infrastructure.vector_store.embedding_pipeline import PersonaEmbeddingPipeline
 from settings import settings
+from tools.places.models import OSMElement
 from tools.reminders.reminder_store import ReminderStore
 
 # Настройка логгера для текущего модуля
@@ -437,5 +441,69 @@ async def stream_track_media(track_id: int, account_id: str = Query(...)):
         raise HTTPException(status_code=500, detail=f"Ошибка: {e}")
     finally:
         session.close()
+
+
+@router.get("/places")
+def get_places(
+        limit: int = 15000,
+        offset: int = 0,
+        bbox: str = None
+):
+    db = Database()
+    session: Session = db.get_session()
+
+    try:
+        # 1. Создаём базовый запрос (БЕЗ limit/offset)
+        query = session.query(
+            OSMElement.id,
+            OSMElement.type,
+            OSMElement.tags,
+            func.ST_AsGeoJSON(OSMElement.geometry).label('geojson')
+        )
+
+        # 2. Фильтр по bbox (если есть)
+        if bbox:
+            coords = [float(x) for x in bbox.split(',')]
+            bbox_geom = func.ST_MakeEnvelope(
+                coords[0], coords[1],  # min_lon, min_lat
+                coords[2], coords[3],  # max_lon, max_lat
+                4326
+            )
+            query = query.filter(
+                func.ST_Intersects(OSMElement.geometry, bbox_geom)
+            )
+
+        # 3. ТОЛЬКО СЕЙЧАС применяем limit/offset
+        elements = query.limit(limit).offset(offset).all()
+
+        # Остальной код без изменений
+        result = []
+        for el in elements:
+            geom = json.loads(el.geojson)
+            item = {
+                "id": el.id,
+                "type": el.type,
+                **(el.tags or {}),
+            }
+
+            if geom['type'] == 'LineString':
+                item["points"] = geom['coordinates']
+            elif geom['type'] == 'Point':
+                item["point"] = geom['coordinates']
+            elif geom['type'] == 'Polygon':
+                item["rings"] = geom['coordinates']
+
+            result.append(item)
+
+        return {
+            "items": result,
+            "count": len(result),
+            "limit": limit,
+            "offset": offset
+        }
+
+    finally:
+        session.close()
+
 
 

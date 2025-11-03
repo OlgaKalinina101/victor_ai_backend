@@ -1,4 +1,4 @@
-
+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
 
 Запуск: 
 net start postgresql-x64-17
@@ -23,6 +23,7 @@ git remote set-url origin https://github.com/OlgaKalinina101/victor_ai_backend.g
 
 .\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
+https://download.osgeo.org/postgis/windows/pg17/ - обязательно!
 
 Перезапустить клавиатуру: 
 $instanceId = "ACPI\VEN_MSFT&DEV_0001\4&2C0E0F0F&0"
