@@ -11,10 +11,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
-    music_folder = r"C:\Users\Alien\Downloads\playlist\playlist"
+    music_folder = r"C:\Users\Alien\Downloads\Downloads"
     scanner = MusicScanner(music_folder)
-    # print("🎵 Запускаю сканирование музыки...")
-    # scanner.scan_folder()  # Раскомментируй, если нужно обновить данные
+    print("🎵 Запускаю сканирование музыки...")
+    scanner.scan_folder()  # Раскомментируй, если нужно обновить данные
     print("📊 Получаю статистику...")
     stats = scanner.get_statistics()
 
@@ -49,6 +49,6 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
-    tracks = asyncio.run(get_tracks_with_descriptions(account_id="test_user"))
-    print(tracks)
+    main()
+    #tracks = asyncio.run(get_tracks_with_descriptions(account_id="test_user"))
+    #print(tracks)

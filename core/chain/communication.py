@@ -180,7 +180,7 @@ class CommunicationPipeline:
             self.track_data, context = await run_playlist_chain(account_id=self.account_id)
             return context
 
-        return None
+        return "Факт пространства: Звуков нет. Музыка не играет." #Заглушка, подумать что с ней делать.
 
     async def _analyze_message(self) -> Tuple[UserProfile, MessageMetadata, ReactionFragments, SessionContext]:
         """Запускает анализ сообщения через MessageAnalyzer."""

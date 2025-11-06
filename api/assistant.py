@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 import yaml
 from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi.responses import FileResponse
 from geoalchemy2.functions import ST_AsGeoJSON
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -401,46 +402,40 @@ async def update_track_description(update: TrackDescriptionUpdate):
 
 @router.get("/stream/{track_id}")
 async def stream_track_media(track_id: int, account_id: str = Query(...)):
-    """Прямой стрим для MediaPlayer"""
+    """Прямой стрим для ExoPlayer"""
     db = Database()
     session = db.get_session()
-
     try:
         track = session.query(MusicTrack).filter(MusicTrack.id == track_id).first()
-
         if not track:
             raise HTTPException(status_code=404, detail="Трек не найден")
 
         file_path = Path(track.file_path)
-
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Файл не найден")
 
-        mime_type = "audio/mpeg"
-        if file_path.suffix == ".flac":
+        # определяем MIME
+        suffix = file_path.suffix.lower()
+        if suffix == ".flac":
             mime_type = "audio/flac"
-        elif file_path.suffix == ".wav":
+        elif suffix == ".wav":
             mime_type = "audio/wav"
+        else:
+            mime_type = "audio/mpeg"
 
-        def iterfile():
-            with open(file_path, "rb") as f:
-                while chunk := f.read(8192):
-                    yield chunk
-
-        return StreamingResponse(
-            iterfile(),
+        return FileResponse(
+            file_path,
             media_type=mime_type,
-            headers={
-                "Content-Disposition": f'inline; filename="{track.filename}"',
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(file_path.stat().st_size)
-            }
+            filename=track.filename,  # опционально, чтобы имя отображалось
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка: {e}")
     finally:
         session.close()
+
 
 
 @router.get("/places")

@@ -1,6 +1,5 @@
 from datetime import datetime
 import yaml
-from tools.places.google_places_utils import get_nearby_restaurants
 from infrastructure.logging.logger import setup_logger
 from tools.places.osm_maps_utils import get_nearby_restaurants_osm
 

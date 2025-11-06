@@ -1,5 +1,4 @@
 from infrastructure.logging.logger import setup_logger
-from settings import settings
 
 logger=setup_logger("places")
 

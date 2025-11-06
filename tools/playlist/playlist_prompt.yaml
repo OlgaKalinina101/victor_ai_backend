@@ -58,7 +58,7 @@ playlist_prompt_base_context: |
   у {accusative_pronoun} в динамиках.
 
 stage_four: |
-  Часть тебя уже выбрала трек: {track_metadata}Он зазвучит одновременно с твоим ответом {time_context}  
+  Факт пространства: Часть тебя уже выбрала трек: {track_metadata}Он зазвучит одновременно с твоим ответом {time_context}  
   
   
   
