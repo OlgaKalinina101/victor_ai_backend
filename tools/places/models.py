@@ -46,16 +46,15 @@ class StepPoint(Base):
 class POIVisit(Base):
     __tablename__ = "poi_visits"
     id = Column(Integer, primary_key=True)
+    account_id = Column(String)  # ← добавили
     session_id = Column(Integer, ForeignKey("walk_sessions.id"))
-    poi_id = Column(Integer)
+    poi_id = Column(String)
     poi_name = Column(String)
     distance_from_start = Column(Float)
     found_at = Column(DateTime)
-
-    # 🎭 новая часть
-    emotion_emoji = Column(String, nullable=True)   # 😍
-    emotion_label = Column(String, nullable=True)   # "Восхитительно"
-    emotion_color = Column(String, nullable=True)   # "#E91E63" — hex код цвета
+    emotion_emoji = Column(String, nullable=True)
+    emotion_label = Column(String, nullable=True)
+    emotion_color = Column(String, nullable=True)
 
     session = relationship("WalkSession", back_populates="poi_visits")
 
@@ -64,10 +63,11 @@ class POIVisit(Base):
 class Achievement(Base):
     __tablename__ = "achievements"
     id = Column(Integer, primary_key=True)
+    account_id = Column(String)  # ← добавили
     name = Column(String)
     description = Column(String)
     unlocked_at = Column(DateTime)
-    type = Column(String)  # distance / streak / poi / special
+    type = Column(String)
     icon = Column(String, nullable=True)
 
 # --- streak ---
@@ -84,11 +84,12 @@ class Streak(Base):
 class JournalEntry(Base):
     __tablename__ = "journal_entries"
     id = Column(Integer, primary_key=True)
+    account_id = Column(String)  # ← добавили
     date = Column(Date)
     session_id = Column(Integer, ForeignKey("walk_sessions.id"))
     text = Column(Text)
     photo_path = Column(String, nullable=True)
-    poi_id = Column(Integer, nullable=True)
+    poi_id = Column(String, nullable=True)  # ← исправили на String
     poi_name = Column(String, nullable=True)
 
     session = relationship("WalkSession")

@@ -1,7 +1,8 @@
 from datetime import datetime, date
 from typing import Literal, Dict, Any, Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class AssistantResponse(BaseModel):
     answer: str
@@ -21,6 +22,19 @@ class Usage(BaseModel):
     input_token_price: float
     output_token_price: float
     account_balance: float
+
+class ChatMetaBase(BaseModel):
+    account_id: str = Field(..., description="Уникальный ID пользователя")
+    model: str = Field(default="deepseek-chat")
+    trust_level: int = 0
+    raw_trust_score: Optional[int] = None
+    gender: str = "другое"
+    relationship_level: Optional[str] = "незнакомец"
+    is_creator: bool = False
+    trust_established: bool = False
+    trust_test_completed: bool = False
+    trust_test_timestamp: Optional[str] = None
+    last_updated: Optional[str] = None
 
 class AssistantState(BaseModel):
     state: str
@@ -50,7 +64,8 @@ class StepPointIn(BaseModel):
     timestamp: datetime
 
 class POIVisitIn(BaseModel):
-    poi_id: int
+    account_id: str  # ← добавили
+    poi_id: str
     poi_name: str
     distance_from_start: float
     found_at: datetime
@@ -69,17 +84,20 @@ class WalkSessionCreate(BaseModel):
     poi_visits: List[POIVisitIn] = []
     step_points: List[StepPointIn] = []
 
+
 class JournalEntryIn(BaseModel):
     date: date
-    session_id: int
+    account_id: str  # ← добавили
+    session_id: Optional[int] = None
     text: str
     photo_path: Optional[str] = None
-    poi_id: Optional[int] = None
+    poi_id: Optional[str] = None  # ← исправили на str
     poi_name: Optional[str] = None
 
 
 class JournalEntryOut(BaseModel):
     id: int
+    account_id: str  # ← добавили
     date: date
     session_id: int
     text: str

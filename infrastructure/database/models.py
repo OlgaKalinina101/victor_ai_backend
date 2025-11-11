@@ -1,3 +1,4 @@
+from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, Text, DateTime, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
@@ -137,13 +138,38 @@ class MusicTrack(Base):
     file_size = Column(Integer)
 
     user_descriptions = relationship("TrackUserDescription", back_populates="track")
+    play_history = relationship("TrackPlayHistory", back_populates="track")
 
     def __repr__(self):
         return f"<MusicTrack {self.artist} - {self.title}>"
 
 
+class TrackPlayHistory(Base):
+    __tablename__ = "track_play_history"
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    track_id = Column(Integer, ForeignKey("music_tracks.id"), nullable=False)
+    account_id = Column(String, ForeignKey("chat_meta.account_id"), nullable=False)
 
+    started_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)
+    duration_played = Column(Float, nullable=True)  # в секундах
+
+    energy_on_play = Column(
+        ENUM(EnergyDescription, name="energy_on_play_enum", create_type=True),
+        nullable=True
+    )
+    temperature_on_play = Column(
+        ENUM(TemperatureDescription, name="temperature_on_play_enum", create_type=True),
+        nullable=True
+    )
+
+    # связи
+    track = relationship("MusicTrack", back_populates="play_history")
+    user = relationship("ChatMeta")
+
+    def __repr__(self):
+        return f"<TrackPlayHistory track_id={self.track_id}, started_at={self.started_at}>"
 
 
 

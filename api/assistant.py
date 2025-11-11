@@ -18,7 +18,7 @@ from api.helpers import convert_message_history, load_serialized_session_context
     get_energy_by_value, get_temperature_by_value
 from infrastructure.context_store.session_context_store import SessionContextStore
 
-from infrastructure.database.models import TrackUserDescription, MusicTrack
+from infrastructure.database.models import TrackUserDescription, MusicTrack, TrackPlayHistory
 from infrastructure.database.repositories import save_diary, get_model_usage, get_music_tracks_with_descriptions, \
     get_track_description, save_track_description
 from infrastructure.database.session import Database
@@ -30,10 +30,10 @@ from api.response_models import AssistantResponse, Message, Usage, AssistantStat
 from core.router.message_router import MessageTypeManager
 from infrastructure.logging.logger import setup_logger
 from infrastructure.pushi.reminders_sender import check_and_send_reminders_pushi
-from infrastructure.utils.io_utils import yaml_safe_load
 from infrastructure.vector_store.embedding_pipeline import PersonaEmbeddingPipeline
 from settings import settings
 from tools.places.models import OSMElement
+from tools.playlist.playlist_tool import run_playlist_chain
 from tools.reminders.reminder_store import ReminderStore
 
 # Настройка логгера для текущего модуля
@@ -416,26 +416,71 @@ async def stream_track_media(track_id: int, account_id: str = Query(...)):
 
         # определяем MIME
         suffix = file_path.suffix.lower()
-        if suffix == ".flac":
-            mime_type = "audio/flac"
-        elif suffix == ".wav":
-            mime_type = "audio/wav"
-        else:
-            mime_type = "audio/mpeg"
+        mime_type = (
+            "audio/flac" if suffix == ".flac"
+            else "audio/wav" if suffix == ".wav"
+            else "audio/mpeg"
+        )
 
+        # 💾 безопасно логируем начало прослушивания
+        try:
+            logger.info(f"🪶 Лог прослушивания: track={track.id}, account={account_id}")
+            desc = (
+                session.query(TrackUserDescription)
+                .filter_by(track_id=track.id, account_id=account_id)
+                .first()
+            )
+
+            new_play = TrackPlayHistory(
+                track_id=track.id,
+                account_id=account_id,
+                started_at=datetime.utcnow(),
+                energy_on_play=desc.energy_description if desc else None,
+                temperature_on_play=desc.temperature_description if desc else None,
+            )
+            session.add(new_play)
+            session.commit()
+            logger.info(f"✅ Успешно записано прослушивание трека {track.title}")
+        except Exception as log_error:
+            session.rollback()
+            logger.error(f"⚠️ Ошибка при сохранении истории трека {track.id}: {log_error}")
+
+        # 🎵 Возвращаем сам файл — независимо от результата логирования
         return FileResponse(
             file_path,
             media_type=mime_type,
-            filename=track.filename,  # опционально, чтобы имя отображалось
+            filename=track.filename,
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"❌ Ошибка при стриме трека {track_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка: {e}")
     finally:
         session.close()
 
+
+@router.post("/playlist/run")
+async def run_playlist_chain_endpoint(
+    account_id: str = Query(...),
+    extra_context: str = Query(None)
+):
+    """
+    Запускает подбор трека (волну).
+    """
+    try:
+        track_data, context = await run_playlist_chain(
+            account_id=account_id,
+            extra_context=extra_context
+        )
+
+        return {
+            "track": track_data,
+            "context": context
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка запуска волны: {e}")
 
 
 @router.get("/places")

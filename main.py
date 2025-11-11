@@ -3,7 +3,7 @@ import asyncio
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from api import assistant
+from api import assistant, stats, journal, achievements, walk_sessions, tracks, chat_meta
 from infrastructure.embeddings.runner import preload_models
 from infrastructure.pushi.reminders_sender import check_and_send_reminders_pushi
 from infrastructure.logging.logger import setup_logger
@@ -29,6 +29,12 @@ app.add_middleware(
 
 # Подключаем эндпоинты
 app.include_router(assistant.router)
+app.include_router(stats.router)
+app.include_router(journal.router)
+app.include_router(achievements.router)
+app.include_router(walk_sessions.router)
+app.include_router(tracks.router)
+app.include_router(chat_meta.router)
 
 @app.get("/")
 def root():

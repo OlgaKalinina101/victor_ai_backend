@@ -1,6 +1,5 @@
 import logging
 import sys
-from concurrent_log_handler import ConcurrentRotatingFileHandler
 from pathlib import Path
 
 

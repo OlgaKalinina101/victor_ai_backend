@@ -48,7 +48,7 @@ class LLMClient:
             raise ValueError(f"Неизвестный режим: {mode}")
         self.model_name = self.mode_config[mode]["model"]
         self.provider = self.mode_config[mode]["provider"]
-        self.timeout = aiohttp.ClientTimeout(total=60)
+        self.timeout = aiohttp.ClientTimeout(total=120)
         self.max_retries = 3
 
     async def get_response(self,

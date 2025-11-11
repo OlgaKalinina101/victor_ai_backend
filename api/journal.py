@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException
 
 from api.response_models import JournalEntryIn
 from infrastructure.database.session import Database
+from infrastructure.logging.logger import setup_logger
 from tools.places import models
 
-
+logger=setup_logger("journal")
 router = APIRouter(prefix="/api/journal", tags=["journal"])
 
 
@@ -15,8 +16,7 @@ def list_entries(account_id: str):
     try:
         entries = (
             session.query(models.JournalEntry)
-            .join(models.WalkSession)
-            .filter(models.WalkSession.account_id == account_id)
+            .filter(models.JournalEntry.account_id == account_id)  # ✅ Фильтр напрямую
             .order_by(models.JournalEntry.date.desc())
             .all()
         )
@@ -39,6 +39,7 @@ def list_entries(account_id: str):
 
 @router.post("/")
 def create_entry(payload: JournalEntryIn):
+    logger.info(f"create_entry: {payload}")
     db = Database()
     session = db.get_session()
     try:
