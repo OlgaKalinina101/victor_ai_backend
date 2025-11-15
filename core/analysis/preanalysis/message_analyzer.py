@@ -133,10 +133,13 @@ class MessageAnalyzer:
                         # Исключаем последние N сообщений из сохранения
                         save_data["message_history"] = raw_data["message_history"][:-len(last_pairs)]
 
-                    # Сохраняем в БД только то, что не будет восстановлено
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, save_session_context_as_history, db_session, save_data
-                    )
+                    # Сохраняем в БД только если есть что сохранять (история не пустая)
+                    if save_data.get("message_history"):
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, save_session_context_as_history, db_session, save_data
+                        )
+                    else:
+                        self.logger.info("[INFO] История сообщений пуста после исключения последних пар - пропускаем сохранение в БД")
                     self.session_context_store = self.session_context_store.load(account_id=self.account_id,
                                                                        db_session=db_session)
                     self.session_context=self.session_context.reset_after_save(
