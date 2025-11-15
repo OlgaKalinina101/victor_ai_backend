@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, Text, DateTime, BigInteger
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, Text, DateTime, BigInteger, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ENUM
@@ -92,6 +92,14 @@ class DialogueHistory(Base):
     has_strong_anchor = Column(Boolean)
     memories = Column(Text)
     anchor = Column(String)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # timestamp для сортировки
+
+    # Индексы для быстрой пагинации и поиска
+    __table_args__ = (
+        Index('idx_account_created_desc', 'account_id', 'created_at'),
+        Index('idx_account_id_desc', 'account_id', 'id'),
+    )
 
 class Diary(Base):
     __tablename__ = "diary"

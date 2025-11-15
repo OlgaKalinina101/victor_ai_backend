@@ -106,3 +106,22 @@ class JournalEntryOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ChatHistoryResponse(BaseModel):
+    """Ответ для GET /chat/history с пагинацией"""
+    messages: List[Message]
+    has_more: bool  # Есть ли еще старые сообщения
+    oldest_id: Optional[int]  # ID самого старого сообщения в выборке
+    newest_id: Optional[int]  # ID самого нового сообщения
+    total_count: Optional[int] = None  # Общее количество (опционально)
+
+
+class SearchResult(BaseModel):
+    """Результат поиска в истории"""
+    messages: List[Message]  # Контекст вокруг найденного
+    matched_message_id: Optional[int]  # ID найденного сообщения
+    total_matches: int  # Всего найдено совпадений
+    current_match_index: int  # Индекс текущего результата
+    has_next: bool  # Есть ли следующий результат
+    has_prev: bool  # Есть ли предыдущий результат

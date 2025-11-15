@@ -20,13 +20,14 @@ from infrastructure.context_store.session_context_store import SessionContextSto
 
 from infrastructure.database.models import TrackUserDescription, MusicTrack, TrackPlayHistory
 from infrastructure.database.repositories import save_diary, get_model_usage, get_music_tracks_with_descriptions, \
-    get_track_description, save_track_description
+    get_track_description, save_track_description, get_dialogue_history_paginated, merge_session_and_db_history, \
+    search_dialogue_history, get_dialogue_context
 from infrastructure.database.session import Database
 from infrastructure.firebase.tokens import save_device_token, TOKENS_FILE
 from api.firebase_models import TokenRequest
 from api.request_models import AssistantRequest, UpdateHistoryRequest, DeleteRequest, UpdateMemoryRequest
 from api.response_models import AssistantResponse, Message, Usage, AssistantState, AssistantMind, MemoryResponse, \
-    AssistantProvider, TrackDescriptionUpdate
+    AssistantProvider, TrackDescriptionUpdate, ChatHistoryResponse, SearchResult
 from core.router.message_router import MessageTypeManager
 from infrastructure.logging.logger import setup_logger
 from infrastructure.pushi.reminders_sender import check_and_send_reminders_pushi
@@ -154,12 +155,79 @@ async def get_assistant_mind(account_id: str = "test_user"):
     # Возвращаем объединённый список
     return anchors + focuses
 
-@router.get("/chat/history", response_model=List[Message])
-async def get_chat_history(account_id: str = "test_user"):
-    context_dict = load_serialized_session_context(account_id)
-    raw_history = context_dict.get("message_history", [])
+@router.get("/chat/history", response_model=ChatHistoryResponse)
+async def get_chat_history(
+    account_id: str = "test_user",
+    limit: int = Query(25, ge=1, le=100),
+    before_id: Optional[int] = Query(None, description="ID сообщения, до которого загружать (для скролла вверх)")
+):
+    """
+    Получает историю чата с пагинацией.
 
-    return convert_message_history(raw_history)
+    - Если before_id=None → возвращает SessionContext + последние из БД
+    - Если before_id задан → возвращает из БД WHERE id < before_id
+    """
+    db = Database()
+    db_session = db.get_session()
+
+    try:
+        if before_id is None:
+            # Первый запрос - возвращаем SessionContext + последние из БД
+            context_dict = load_serialized_session_context(account_id)
+
+            # Загружаем последние N сообщений из БД для мержа
+            db_messages, has_more = get_dialogue_history_paginated(
+                db_session, account_id, limit=limit
+            )
+
+            # Мержим SessionContext и БД
+            merged = merge_session_and_db_history(context_dict, db_messages)
+
+            # Конвертируем в Message
+            messages = []
+            for msg in merged:
+                messages.append(Message(
+                    text=msg["text"],
+                    is_user=(msg["role"] == "user"),
+                    timestamp=int(msg["created_at"].timestamp()) if msg["created_at"] else int(datetime.now().timestamp())
+                ))
+
+            # Получаем ID для пагинации
+            oldest_id = db_messages[0].id if db_messages else None
+            newest_id = db_messages[-1].id if db_messages else None
+
+            return ChatHistoryResponse(
+                messages=messages,
+                has_more=has_more,
+                oldest_id=oldest_id,
+                newest_id=newest_id
+            )
+        else:
+            # Последующие запросы - только из БД
+            db_messages, has_more = get_dialogue_history_paginated(
+                db_session, account_id, limit=limit, before_id=before_id
+            )
+
+            # Конвертируем в Message
+            messages = []
+            for record in db_messages:
+                messages.append(Message(
+                    text=record.text,
+                    is_user=(record.role == "user"),
+                    timestamp=int(record.created_at.timestamp()) if record.created_at else int(datetime.now().timestamp())
+                ))
+
+            oldest_id = db_messages[0].id if db_messages else None
+            newest_id = db_messages[-1].id if db_messages else None
+
+            return ChatHistoryResponse(
+                messages=messages,
+                has_more=has_more,
+                oldest_id=oldest_id,
+                newest_id=newest_id
+            )
+    finally:
+        db_session.close()
 
 
 @router.put("/chat/update_history")
@@ -203,6 +271,81 @@ async def update_chat_history(
     except Exception as e:
         logger.error(f"[history] Ошибка обновления истории: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/chat/history/search", response_model=SearchResult)
+async def search_chat_history(
+    account_id: str = Query("test_user"),
+    query: str = Query(..., min_length=1, description="Поисковый запрос"),
+    offset: int = Query(0, ge=0, description="Смещение для навигации по результатам (0 = первый результат)"),
+    context_before: int = Query(10, ge=0, le=50, description="Количество сообщений до найденного"),
+    context_after: int = Query(10, ge=0, le=50, description="Количество сообщений после найденного")
+):
+    """
+    Ищет сообщения по ключевому слову и возвращает контекст вокруг найденного.
+
+    Workflow:
+    - offset=0 → первый (самый новый) результат
+    - offset=1 → второй результат (более старый)
+    - И так далее
+
+    Возвращает контекст вокруг найденного сообщения + мета-информацию для навигации.
+    """
+    db = Database()
+    db_session = db.get_session()
+
+    try:
+        # Ищем сообщения
+        results, total_count = search_dialogue_history(
+            db_session, account_id, query, offset=offset
+        )
+
+        if not results:
+            # Ничего не найдено
+            return SearchResult(
+                messages=[],
+                matched_message_id=None,
+                total_matches=total_count,
+                current_match_index=offset,
+                has_next=False,
+                has_prev=False
+            )
+
+        # Берем найденное сообщение
+        matched_message = results[0]
+
+        # Получаем контекст вокруг
+        context_messages = get_dialogue_context(
+            db_session,
+            account_id,
+            matched_message.id,
+            context_before=context_before,
+            context_after=context_after
+        )
+
+        # Конвертируем в Message
+        messages = []
+        for record in context_messages:
+            messages.append(Message(
+                text=record.text,
+                is_user=(record.role == "user"),
+                timestamp=int(record.created_at.timestamp()) if record.created_at else int(datetime.now().timestamp())
+            ))
+
+        return SearchResult(
+            messages=messages,
+            matched_message_id=matched_message.id,
+            total_matches=total_count,
+            current_match_index=offset,
+            has_next=(offset + 1) < total_count,
+            has_prev=offset > 0
+        )
+
+    except Exception as e:
+        logger.error(f"[search] Ошибка поиска в истории: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db_session.close()
 
 
 @router.get("/usage", response_model=List[Usage])
