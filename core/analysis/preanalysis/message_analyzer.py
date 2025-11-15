@@ -126,8 +126,16 @@ class MessageAnalyzer:
                 raw_data = to_serializable(self.session_context)
                 if is_session_stale(raw_data):
                     last_pairs = self.session_context.get_last_n_pairs(n=3)
+
+                    # Создаем копию для сохранения БЕЗ последних 3 пар (они будут восстановлены)
+                    save_data = raw_data.copy()
+                    if last_pairs:
+                        # Исключаем последние N сообщений из сохранения
+                        save_data["message_history"] = raw_data["message_history"][:-len(last_pairs)]
+
+                    # Сохраняем в БД только то, что не будет восстановлено
                     await asyncio.get_event_loop().run_in_executor(
-                        None, save_session_context_as_history, db_session, raw_data
+                        None, save_session_context_as_history, db_session, save_data
                     )
                     self.session_context_store = self.session_context_store.load(account_id=self.account_id,
                                                                        db_session=db_session)
