@@ -11,8 +11,8 @@ UPDATE chat_meta SET model = 'deepseek-chat' WHERE account_id = 'test_user';
 
 SELECT * FROM track_user_descriptions WHERE id = '38';
 
-ngrok http 8000
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+ngrok http 8080
+uvicorn main:app --reload --host 0.0.0.0 --port 8080
 
 Invoke-RestMethod -Method GET -Uri "http://localhost:8099/usage?account_id=test_user"
 

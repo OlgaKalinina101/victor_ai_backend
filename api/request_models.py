@@ -22,3 +22,13 @@ class DeleteRequest(BaseModel):
 class UpdateMemoryRequest(BaseModel):
     text: str
     metadata: Optional[Dict[str, Any]] = None
+
+class ChatMetaUpdateRequest(BaseModel):
+    model: str | None = None
+    trust_level: int | None = None
+    raw_trust_score: int | None = None
+    gender: str | None = None
+    relationship_level: str | None = None
+    is_creator: bool | None = None
+    trust_established: bool | None = None
+    trust_test_completed: bool | None = None

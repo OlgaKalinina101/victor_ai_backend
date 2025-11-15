@@ -1,7 +1,11 @@
+from typing import Optional, List
+
 from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from infrastructure.database.models import TrackPlayHistory, MusicTrack
+from infrastructure.database.database_enums import EnergyDescription, TemperatureDescription
+from infrastructure.database.models import TrackPlayHistory, MusicTrack, TrackUserDescription
 from infrastructure.database.session import Database
 
 router = APIRouter(prefix="/tracks", tags=["tracks"])
@@ -150,5 +154,80 @@ async def get_track_statistics(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при получении статистики: {e}")
+    finally:
+        session.close()
+
+@router.post("/run_playlist_wave")
+async def run_playlist_wave(
+    account_id: str = Query(...),
+    energy: Optional[str] = Query(None),
+    temperature: Optional[str] = Query(None),
+    limit: int = Query(20)   # сколько треков в “волне”
+):
+    """
+    Подбираем треки под энергию + температуру и отдаём волну.
+    """
+    energy_enum = EnergyDescription.from_value(energy) if energy else None
+    temp_enum = TemperatureDescription.from_value(temperature) if temperature else None
+
+    db = Database()
+    session = db.get_session()
+    try:
+        q = (
+            session.query(MusicTrack)
+            .join(
+                TrackUserDescription,
+                TrackUserDescription.track_id == MusicTrack.id
+            )
+            .filter(TrackUserDescription.account_id == account_id)
+        )
+
+        # фильтр по энергии
+        if energy_enum:
+            q = q.filter(TrackUserDescription.energy_description == energy_enum)
+
+        # фильтр по температуре
+        if temp_enum:
+            q = q.filter(TrackUserDescription.temperature_description == temp_enum)
+
+        # немного рандома, чтобы это была "волна", а не всегда один порядок
+        q = q.order_by(func.random()).limit(limit)
+
+        tracks: List[MusicTrack] = q.all()
+
+        if not tracks:
+            return {
+                "tracks": [],
+                "message": "Нет треков под такие энергию и температуру"
+            }
+
+        # собираем лёгкий payload для фронта
+        payload = []
+        for t in tracks:
+            # берём описание именно этого пользователя
+            desc = next(
+                (d for d in t.user_descriptions if d.account_id == account_id),
+                None
+            )
+            payload.append({
+                "id": t.id,
+                "title": t.title,
+                "artist": t.artist,
+                "duration": t.duration,
+                "energy_description": getattr(desc, "energy_description", None),
+                "temperature_description": getattr(desc, "temperature_description", None),
+                # удобный URL для ExoPlayer:
+                "stream_url": f"/stream/{t.id}?account_id={account_id}",
+            })
+
+        return {
+            "tracks": payload,
+            "energy": energy,
+            "temperature": temperature,
+        }
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка подбора волны: {e}")
     finally:
         session.close()
