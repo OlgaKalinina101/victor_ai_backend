@@ -410,7 +410,7 @@ pip install -r requirements.txt
 
 Решение: 
 
-1. Качаю Visual Studio Build Tools с visualstudio.microsoft.com/downloads/ 
+1. Качаю Visual Studio Build Tools с [visualstudio.microsoft.com/downloads/ ](https://visualstudio.microsoft.com/ru/downloads/)  
 
 2. В разделе "Tools for Visual Studio" → "Build Tools for Visual Studio 2022" скачиваю и запускаю vs_BuildTools.exe
 
