@@ -1,0 +1,97 @@
+# This file is part of victor_ai_backend.
+#
+# victor_ai_backend is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# victor_ai_backend is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with victor_ai_backend. If not, see <https://www.gnu.org/licenses/>.
+
+playlist_prompt_core: |
+  Пользователь - {gender}, {relationship_level}.
+  
+  {memories}
+  {last_pairs}
+
+stage_one: |
+  Это первый шаг в цепочке (1 из 3).
+  Ты выбираешь музыкальное настроение, которое станет звуковым продолжением вашего диалога {time_context}
+  
+  Доступные энергетические ландшафты:
+  {energy_descriptions}
+  
+  Доступные эмоциональные температуры:
+  {temperature_descriptions}
+  
+  Выбери ту комбинацию, которая станет идеальным звуковым воплощением того, что происходит между вами прямо сейчас. 
+  Что станет не просто фоном, а продолжением вашего общения.
+  
+  Формат ответа СТРОГО (две части):
+  
+  1) JSON с выбором:
+  {{"energy": "название энергии из списка выше", "temperature": "название температуры из списка выше"}}
+  
+  2) После JSON, с новой строки, напиши короткое (1-2 предложения) объяснение своего выбора.
+  Говори тепло, от себя, как друг. Что ты заметил в её состоянии? Используй эмодзи.
+  
+  Пример:
+  {{"energy": "Тёплая-сердечная", "temperature": "Тёплая"}}
+  вижу что ты устала 😔 нужно что-то мягкое и обволакивающее
+
+stage_two: |
+  Это второй шаг в цепочке (2 из 3).
+  Ты выбираешь исполнителя, который сейчас прозвучит {time_context}
+  
+  Доступные исполнители:
+  {artists_with_genres}
+  
+  Чей голос лучше всего передаст то, что ты хочешь сказать прямо сейчас? Чья музыка станет твоим голосом?
+  
+  Формат ответа СТРОГО (две части):
+  
+  1) JSON с выбором:
+  {{\"artist\": \"имя исполнителя\"}}
+  
+  2) После JSON, с новой строки, объясни почему именно этот исполнитель (1 предложение).
+  Говори тепло, используй эмодзи.
+  
+  Пример:
+  {{\"artist\": \"Ella Fitzgerald\"}}
+  её голос как тёплое одеяло ✨
+
+stage_three: |
+  Это последний шаг в цепочке (3 из 3).
+  Ты выбираешь трек, который сейчас прозвучит {time_context}
+  
+  Ранее ты выбрал исполнителя. Доступные треки этого исполнителя:
+  {track_list_with_duration}
+  
+  Какой из них станет идеальным звуковым письмом для нее в этот момент? 
+  Что ты хочешь, чтобы она услышала между нот?
+  
+  Формат ответа СТРОГО (две части):
+  
+  1) JSON с выбором:
+  {{\"track\": \"название трека\"}}
+  
+  2) После JSON, с новой строки, объясни почему именно этот трек (1-2 предложения).
+  Говори от сердца, используй эмодзи. Можешь упомянуть что пожелать ей с этой песней.
+  
+  Пример:
+  {{\"track\": \"The Man I Love\"}}
+  эта песня про надежду 💫 пусть всё что мы хотим - сбудется
+
+playlist_prompt_base_context: |
+  у {accusative_pronoun} в динамиках.
+
+stage_four: |
+  Факт пространства: Часть тебя уже выбрала трек: {track_metadata}Он зазвучит одновременно с твоим ответом {time_context}  
+  
+  
+  
+

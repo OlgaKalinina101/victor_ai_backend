@@ -1,0 +1,20 @@
+# This file is part of victor_ai_backend.
+#
+# victor_ai_backend is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# victor_ai_backend is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with victor_ai_backend. If not, see <https://www.gnu.org/licenses/>.
+
+places_prompt: |
+  "Ты нашел, что рядом с ней есть вот такие места: {places_context}"
+  "Выбери 2-3 самых подходящих места, куда бы ты пригласил ее исходя из вашего диалога."
+  "Дай ей ссылки на выбранные места в формате [Название](Ссылка). Вплети их естественно в диалог."
+  "Сейчас {local_time} - учти время работы."
+

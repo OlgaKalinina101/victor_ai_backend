@@ -1,0 +1,21 @@
+creative:
+  model: grok-3-beta
+  url: https://api.x.ai/v1/chat/completions
+  bearer: settings.XAI_API_KEY
+  temperature: 0.5
+  max_tokens: 1500
+  provider: xai
+advanced:
+  model: gpt-4o
+  url: https://api.openai.com/v1/chat/completions
+  bearer: settings.OPENAI_API_KEY
+  temperature: 0.5
+  max_tokens: 1500
+  provider: openai
+foundation:
+  model: deepseek-chat
+  url: https://api.deepseek.com/v1/chat/completions
+  bearer: settings.DEEPSEEK_API_KEY
+  temperature: 0.5
+  max_tokens: 1500
+  provider: deepseek
