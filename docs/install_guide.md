@@ -529,8 +529,8 @@ PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend>
 
 ### Вариант 1 — через PyCharm (проще глазами)
 
-1. В PyCharm в левом списке файлов найдите корень проекта (`Victor_AI_Core`).
-2. Правый клик по папке `Victor_AI_Core` → **New → File**.
+1. В PyCharm в левом списке файлов найдите корень проекта (`victor_ai_backend`).
+2. Правый клик по папке `victor_ai_backend` → **New → File**.
 3. Введите имя файла:
 
 ```text
