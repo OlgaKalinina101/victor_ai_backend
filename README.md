@@ -1,4 +1,4 @@
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+ц[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 # ONE OF THE FIRST OPEN-SOURCE EMOTIONAL AI COMPANIONS FOR PERSONAL RELATIONSHIPS 
 
@@ -160,7 +160,7 @@
 
 ## Быстрый старт - начало введения в установку.
 
-> Я старалась писать все гайды так, как хотела бы увидеть их сама, много лет назад, в очередной раз теряющая смыслы и самое важное.  
+#### Не бойтесь. Я старалась писать все гайды так, как хотела бы увидеть их сама, много лет назад, в очередной раз теряющая смыслы и самое важное.  
 
 ### **СВОД и что за чем следует - чтобы стало понятно, что шагов много:**
    * Скачать репозиторий на свой компьютер.
