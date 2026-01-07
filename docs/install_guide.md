@@ -416,7 +416,7 @@ pip install -r requirements.txt
 
 3. При установке выбираю:
    * "Разработка классических приложений на С++ для Windows"/"Desktop development with C++" (галочка)
-   * В правой части обязательно "MSVC v143 - VS 2022 C++ x64/x86 build tools" и "Windows SDK" (обычно стоит по умолчанию)
+   * В правой части обязательно "MSVC v143 - VS 2022 C++ x64/x86 build tools" и "Windows SDK" (обычно НЕ стоит по умолчанию)
 
 4. Нажимаю "Install"
 
