@@ -1,8 +1,16 @@
 [← Назад к README](../README.md)
 
 ---
+Этот файл является частью проекта victor_ai_backend.
 
-# 📍 Этот документ для тех, кто:  
+Проект распространяется под лицензией GNU Affero General Public License v3.0 (AGPL-3.0).
+
+Подробности лицензии: https://www.gnu.org/licenses/agpl-3.0.html  
+Полный текст: https://github.com/OlgaKalinina101/victor_ai_backend/blob/main/LICENSE.txt в корне репозитория.
+
+Copyright © 2026 
+
+# Этот документ для тех, кто:  
 
 ✓ Хочет понять философию trust.  
 ✓ Планирует дать кому-то доступ к своей системе.  
