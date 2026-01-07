@@ -504,7 +504,7 @@ env.example
 
 ### Где мы сейчас находимся
 
-Дальше все шаги предполагают, что вы в терминале находитесь в корне проекта Victor Core.
+Дальше все шаги предполагают, что вы в терминале находитесь в корне проекта victor_ai_backend.
 Это должно выглядеть примерно так:
 
 ```text
@@ -546,7 +546,7 @@ PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend>
 Убедитесь, что терминал всё так же показывает:
 
 ```text
-PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend\Victor_AI_Core>
+PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend>
 ```
 
 И выполните команду:
