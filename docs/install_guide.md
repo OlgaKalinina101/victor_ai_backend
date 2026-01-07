@@ -26,6 +26,7 @@ net start postgresql-x64-17
 Команда выполняется **в Windows PowerShell с правами администратора**. Как открыть такой PowerShell — в гайде:
 [how_use_terminal.md](guide_for_junior/how_use_terminal.md)
 
+
 ```bash
 ngrok start --all
 ```
@@ -33,6 +34,7 @@ ngrok start --all
 — запуск туннелей **ngrok** для android приложения (даёт наружный `https://`-адрес для бэкенда, если устанавливаете web demo и не собираетесь его раздавать соседям или открывать с телефона - пропустите этот пункт).
 Эту команду удобно запускать **в терминале PyCharm** из корня проекта `Victor_AI_Core`.
 Подробно: [how_create_ngrok.md](guide_for_junior/how_create_ngrok.md)
+
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
