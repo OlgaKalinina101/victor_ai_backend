@@ -46,8 +46,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 Тоже в **терминале PyCharm** из корня проекта `Victor_AI_Core`.
 
-👉 Если слова «терминал в PyCharm» или «корень проекта» или любые другие звучат страшно — это нормально.  
-Вот тут как раз: [how_ask_chatgpt.md](guide_for_junior/how_ask_chatgpt.md) — как спросить у ИИ, где он и что это.  
+👉 А по любым своим вопросам будете ходить к ИИ и спрашивать, спрашивать, спрашивать: [how_ask_chatgpt.md](guide_for_junior/how_ask_chatgpt.md).  
 
 ---
 
