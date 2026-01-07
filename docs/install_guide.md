@@ -67,8 +67,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 * Установите **Python и PyCharm**:
   [how_install_pycharm.md](guide_for_junior/how_install_pycharm.md)
-* Найдите, где в PyCharm прячется **Terminal**, и разберитесь, что такое «корень проекта» — если нужно, спрашивайте у ИИ:
-  [how_ask_chatgpt.md](guide_for_junior/how_ask_chatgpt.md)
+* Вместе с ИИ, найдите, где в PyCharm прячется **Terminal**, и разберитесь, что такое «корень проекта».  
 
 ---
 
