@@ -1020,8 +1020,8 @@ http://localhost:5173
 
 1. Читаем документацию по диалоговому конструктору и промптам:
 
-   * [dialogue_core.md](docs/dialogue_core.md) — как устроен диалоговый конструктор.
-   * [system&context.md](docs/system%26context.md) — что здесь за промпты и почему они такие.
+   * [dialogue_core.md](dialogue_core.md) — как устроен диалоговый конструктор.
+   * [system&context.md](system%26context.md) — что здесь за промпты и почему они такие.
 
 2. Собираем **свою persona**:
 
