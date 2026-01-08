@@ -950,7 +950,13 @@ npm install
 > На экране "Custom Setup" → убедитесь, что выбран "npm package manager" ✓   
 > На экране "Tools for Native Modules" → отметьте "Automatically install..." ✓   
 > Установите
-> **Перезагрузите компьютер**  
+> **Перезагрузите компьютер**
+> После перезагрузки **обязательно откройте второе окно Pycharm и запустите backend заново**:  
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+> **У вас должно быть открыто ДВА окна PyCharm - старый с запущенным бэкендом, и новый, где вы собираетесь запускать web demo**  
 >  
 > Или скопируйте ошибку и идите к ИИ по гайду:
 > [how_ask_chatgpt.md](guide_for_junior/how_ask_chatgpt.md)
