@@ -828,11 +828,11 @@ net start postgresql-x64-17
 В очередной раз убедитесь, что в **терминале PyCharm** путь выглядит примерно так:
 
 ```text
-(.venv) PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend\Victor_AI_Core>
+(.venv) PS C:\Users\ВашеИмя\PyCharmProjects\victor_ai_backend>
 ```
 
 * `(.venv)` в начале — значит, активировано виртуальное окружение.
-* В конце — папка `Victor_AI_Core` (корень проекта).  
+* В конце — папка `victor_ai_backend` (корень проекта).  
 
 Если все так — то вводим и выполняем команду:
 
