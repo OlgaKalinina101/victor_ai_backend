@@ -1020,7 +1020,7 @@ http://localhost:5173
 2. Собираем **свою persona**:
 
    * аккуратно правим `system.yaml`,
-   * меняем контекст, изучаем  https://github.com/OlgaKalinina101/victor_ai_backend/blob/main/docs/debug_dataset%26llm_providers.md 
+   * меняем контекст, изучаем [debug_dataset&llm_providers.md](debug_dataset%26llm_providers.md) 
    * подстраиваем ответы под себя.
 
 4. Тестируем всё это в web demo.
