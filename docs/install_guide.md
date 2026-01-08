@@ -951,7 +951,7 @@ npm install
 > На экране "Tools for Native Modules" → отметьте "Automatically install..." ✓   
 > Установите  
 > **Перезагрузите компьютер**  
-> После перезагрузки **обязательно откройте второе окно Pycharm и запустите backend заново**:  
+> После перезагрузки **обязательно откройте второе окно Pycharm с victor_ai_backend и запустите backend заново**:  
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
