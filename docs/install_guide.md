@@ -44,7 +44,7 @@ ngrok start --all
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-Тоже в **терминале PyCharm** из корня проекта `Victor_AI_Core`.
+Тоже в **терминале PyCharm** из корня проекта `victor_ai_backend`.
 
 ---
 
