@@ -236,8 +236,8 @@ LLM не обязан «копировать» пунктуацию, но он *
   <tr>
     <td align="center"><img src="dialogue_example/02943953-5a5e-479c-992b-a35f78ad53aa.jpg" width="300" /></td>
     <td align="center"><img src="dialogue_example/1240429b-6042-4d5c-83b8-10a5714e217a.jpg" width="300" /></td>
-    <td align="center"><img src="dialogue_example/38086765-a9f7-463f-884d-32347c24f6b4.jpg" width="300" /></td>
     <td align="center"><img src="dialogue_example/f0612ac0-5217-4651-b407-4349d7866e09.jpg" width="300" /></td>
+    <td align="center"><img src="dialogue_example/38086765-a9f7-463f-884d-32347c24f6b4.jpg" width="300" /></td>
   </tr>
 </table>
 
