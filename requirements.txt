@@ -19,7 +19,6 @@ torch>=2.9.0
 sentence-transformers~=5.1.0
 scikit-learn~=1.7.1
 transformers~=4.55.4
-SQLAlchemy~=2.0.43
 alembic==1.16.5
 psycopg2~=2.9.10
 chromadb~=1.0.20
