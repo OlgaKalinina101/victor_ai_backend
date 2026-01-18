@@ -1,0 +1,132 @@
+# Victor AI - Personal AI Companion for Android
+# Copyright (C) 2025-2026 Olga Kalinina
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+
+# Конфигурация запросов к Overpass API
+# 
+# Формат: {south},{west},{north},{east} будут подставлены автоматически
+# Timeout подставляется из настроек OSMAPIService
+
+queries:
+  # Полный набор для игры (дефолтный)
+  full:
+    description: "Полный набор объектов для игры: кафе, парки, здания, дороги"
+    query: |
+      [out:json][timeout:{timeout}];
+      (
+        // КАФЕ, РЕСТОРАНЫ, БАРЫ
+        node["amenity"~"cafe|restaurant|bar|pub|nightclub"]({bbox});
+        way["amenity"~"cafe|restaurant|bar|pub|nightclub"]({bbox});
+
+        // КАЛЬЯННЫЕ
+        node["amenity"="hookah"]({bbox});
+        node["hookah"="yes"]({bbox});
+        way["amenity"="hookah"]({bbox});
+        way["hookah"="yes"]({bbox});
+
+        // ПАРКИ И ПЛОЩАДКИ (как POI)
+        node["leisure"~"park|garden|playground"]({bbox});
+        way["leisure"~"park|garden|playground"]({bbox});
+
+        // ЗЕЛЕНЬ
+        way["leisure"~"park|garden"]({bbox});
+        way["landuse"~"forest|meadow|grass"]({bbox});
+        relation["landuse"~"forest|meadow|grass"]({bbox});
+
+        // ВОДА
+        way["natural"="water"]({bbox});
+        way["waterway"="riverbank"]({bbox});
+        relation["natural"="water"]({bbox});
+
+        // ДОРОГИ
+        way["highway"~"motorway|trunk|primary|secondary"]({bbox});
+        way["bridge"="yes"]({bbox});
+
+        // КРУПНЫЕ ЗДАНИЯ
+        way["building"~"commercial|retail"]({bbox});
+        relation["building"]({bbox});
+      );
+      out geom;
+
+  # Только заведения (для быстрых запросов)
+  amenities_only:
+    description: "Только кафе, рестораны, бары"
+    query: |
+      [out:json][timeout:{timeout}];
+      (
+        node["amenity"~"cafe|restaurant|bar|pub|nightclub|hookah"]({bbox});
+        way["amenity"~"cafe|restaurant|bar|pub|nightclub|hookah"]({bbox});
+        node["hookah"="yes"]({bbox});
+        way["hookah"="yes"]({bbox});
+      );
+      out geom;
+
+  # Только природные объекты
+  nature_only:
+    description: "Парки, леса, вода"
+    query: |
+      [out:json][timeout:{timeout}];
+      (
+        // ПАРКИ
+        node["leisure"~"park|garden|playground"]({bbox});
+        way["leisure"~"park|garden|playground"]({bbox});
+        
+        // ЗЕЛЕНЬ
+        way["leisure"~"park|garden"]({bbox});
+        way["landuse"~"forest|meadow|grass"]({bbox});
+        relation["landuse"~"forest|meadow|grass"]({bbox});
+
+        // ВОДА
+        way["natural"="water"]({bbox});
+        way["waterway"~"river|stream|canal"]({bbox});
+        relation["natural"="water"]({bbox});
+      );
+      out geom;
+
+  # Инфраструктура (дороги, здания)
+  infrastructure_only:
+    description: "Дороги, мосты, крупные здания"
+    query: |
+      [out:json][timeout:{timeout}];
+      (
+        // ДОРОГИ
+        way["highway"~"motorway|trunk|primary|secondary|tertiary"]({bbox});
+        way["bridge"="yes"]({bbox});
+
+        // ЗДАНИЯ
+        way["building"~"commercial|retail|public|office"]({bbox});
+        relation["building"]({bbox});
+      );
+      out geom;
+
+  # Минимальный набор (для тестов)
+  minimal:
+    description: "Минимальный набор для быстрых тестов"
+    query: |
+      [out:json][timeout:{timeout}];
+      (
+        node["amenity"~"cafe|restaurant"]({bbox});
+        way["leisure"="park"]({bbox});
+      );
+      out geom;
+
+# Настройки по умолчанию
+defaults:
+  query_type: "full"
+  timeout: 180  # Увеличен с 90 до 180 секунд для медленных сетей
+  overpass_url: "https://overpass-api.de/api/interpreter"
+  
+  # Настройки retry логики
+  max_retries: 3  # Максимальное количество повторных попыток
+  retry_backoff_factor: 2.0  # Множитель для экспоненциальной задержки
+  retry_initial_delay: 5  # Начальная задержка в секундах
+  retry_on_status_codes: [504, 503, 429]  # Коды ошибок для retry

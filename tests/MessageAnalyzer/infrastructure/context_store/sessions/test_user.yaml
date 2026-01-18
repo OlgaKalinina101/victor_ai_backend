@@ -1,0 +1,41 @@
+account_id: test_user
+anchor_link_history: []
+count:
+  anchor_thought_count: 0
+  anger_count: 0
+  clarify_count: 0
+  confirm_count: 0
+  hug_count: 0
+  metaphor_count: 0
+  observe_count: 0
+  outburst_count: 0
+  presence_count: 0
+  pulse_count: 0
+  redirect_count: 0
+  resonance_count: 0
+  spark_count: 0
+  story_count: 0
+  support_count: 0
+  symbol_count: 0
+  transfer_count: 0
+dialog_weight: 1
+focus_points_history: []
+key_info_history: []
+last_assistant_message: null
+last_update: 2025-08-30 18:48:14.364119
+message_category_history: []
+message_history: []
+next_event: null
+session_start_time: 0.0
+victor_impressive_count: []
+victor_impressive_history: []
+victor_intensity_history: []
+victor_mood_history: []
+weights:
+  anger: 0.0
+  disgust: 0.0
+  fear: 0.0
+  joy: 0.0
+  neutral: 0.0
+  sadness: 0.0
+  surprise: 0.0

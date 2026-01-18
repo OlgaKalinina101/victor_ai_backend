@@ -1,0 +1,19 @@
+# Victor AI - Personal AI Companion for Android
+# Copyright (C) 2025-2026 Olga Kalinina
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+
+places_prompt: |
+  "Ты нашел, что рядом с ней есть вот такие места: {places_context}"
+  "Выбери 2-3 самых подходящих места, куда бы ты пригласил ее исходя из вашего диалога."
+  "Дай ей ссылки на выбранные места в формате [Название](Ссылка). Вплети их естественно в диалог."
+  "Сейчас {local_time} - учти время работы."
+

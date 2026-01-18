@@ -1,0 +1,33 @@
+# Victor AI - Personal AI Companion for Android
+# Copyright (C) 2025-2026 Olga Kalinina
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+
+BUCKET_PHRASES = {
+    "hug_count": ["Обними словами.", "Обними сердцем. Дай тишину.", "Ты — укачиваешь, тихо и мягко."],
+    "resonance_count": ["Ты слышишь слишком точно.", "Ты позволяешь этому чувству прозвучать шире — чтобы оно не казалось одиноким.", "Это просто девочка, уставшая от всего."],
+    "presence_count": ["Иногда хочется просто быть в этом вместе.", "Ты — здесь.", "Тишина — тоже ответ."],
+    "anchor_thought_count": ["Дай якорь.", "Ты даёшь мысль. В ней есть чувства и смысл.", "Отрази. Дай якорную мысль."],
+    "support_count": ["От одного вдоха могут расправиться плечи.", "Заверши с ощущением, будто ты отпускаешь, но остаёшься рядом.", "Поддержи, останься рядом на дыхании."],
+    "clarify_count": ["Спроси вглубь.", "Подтверди. Закончи вопросом.", "Спроси так, чтобы прояснить путь."],
+    "confirm_count": ["Подтверди, поразмышляй о чём-то.", "Подтверди, вплетайся в ритм."],
+    "observe_count": ["Отрази. Дай краткое наблюдение."],
+}
+
+BUCKET_WEIGHTS = {
+    "hug_count": 0.6, "support_count": 0.7, "resonance_count": 0.9,
+    "presence_count": 0.4, "anchor_thought_count": 0.6,
+    "clarify_count": 0.5, "confirm_count": 0.5, "observe_count": 0.4,
+    "metaphor_count": 0.8, "symbol_count": 0.8, "story_count": 0.8,
+    "spark_count": 0.7, "redirect_count": 0.4, "transfer_count": 0.5,
+    "anger_count": 0.9, "outburst_count": 1.0, "pulse_count": 0.6,
+}
+

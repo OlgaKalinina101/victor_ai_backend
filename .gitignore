@@ -1,0 +1,33 @@
+# Виртуальное окружение
+.venv/
+.idea/
+__pycache__/
+
+# Логи — любые директории с именем logs на любом уровне
+logs/
+**/logs/
+
+# Конфигурационные файлы и токены
+.env
+.env.local
+firebase_tokens.json
+tokens.json
+infrastructure/firebase_tokens.json
+infrastructure/firebase/victoraiproject-a706f0bbcb99.json
+infrastructure/logging/debug_dataset/debug_dataset.jsonl
+
+# Базы данных и кэш
+infrastructure/vector_store/4ae1564f-4c40-4b35-9652-8ef557f21114/
+infrastructure/vector_store/1dc32a2f-76ff-4766-95ab-d43ad083a010/
+infrastructure/vector_store/chroma.sqlite3
+tests/MessageAnalyzer/infrastructure/vector_store/chroma.sqlite3
+help_database
+infrastructure/context_store/sessions/
+
+# Миграции Alembic
+# Обычно миграции Alembic грузят в репозиторий, чтобы все разработчики использовали одни и те же миграции.
+# Но если у вас локальные миграции или специфические настройки, их можно игнорировать.
+# Например:
+# migrations/
+# или конкретные файлы миграций, если они генерируются автоматически и не должны синхронизироваться.
+# Но в большинстве случаев миграции Alembic коммитят в репозиторий.
