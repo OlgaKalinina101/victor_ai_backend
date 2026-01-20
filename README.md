@@ -1,4 +1,5 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Roadmap](https://img.shields.io/badge/Roadmap-OPEN-%23ff69b4.svg)](ROADMAP.md)
 
 # ONE OF THE FIRST OPEN-SOURCE EMOTIONAL AI COMPANIONS FOR PERSONAL RELATIONSHIPS 
 
@@ -30,6 +31,7 @@
 - [💡 Рекомендация по технической организации](#support-policy)
 - [Быстрый старт - начало введения в установку](#steps)
 - [Порядок установки и чтения документации](#docs-order)
+- [📌 Roadmap проекта Victor AI](ROADMAP.md)
 
 --- 
 
