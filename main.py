@@ -74,16 +74,20 @@ async def lifespan(app: FastAPI):
     # Старт фонового воркера напоминаний
     app.state.reminders_task = asyncio.create_task(_reminders_worker())
 
+    # Старт фонового воркера рефлексии Victor (автономия)
+    app.state.reflection_task = asyncio.create_task(_reflection_worker())
+
     yield
 
     # Shutdown: останавливаем фоновые задачи
-    reminders_task = getattr(app.state, "reminders_task", None)
-    if reminders_task:
-        reminders_task.cancel()
-        try:
-            await reminders_task
-        except asyncio.CancelledError:
-            pass
+    for task_name in ("reminders_task", "reflection_task"):
+        task = getattr(app.state, task_name, None)
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
     
     # Cleanup: dispose database connection pool
     if hasattr(app.state, "db"):
@@ -157,6 +161,96 @@ async def _reminders_worker() -> None:
             check_and_send_reminders_pushi()
         except Exception:
             logger.exception("[reminders] Ошибка в воркере отправки напоминаний")
+        await asyncio.sleep(60)
+
+
+# ---------- Reflection (Autonomy) ----------
+
+_last_reflection_time: datetime | None = None
+
+
+async def _reflection_worker() -> None:
+    """
+    Фоновый воркер рефлексии Victor (автономия).
+
+    Каждые 60 секунд проверяет условия запуска:
+      1. Есть creator_account_id в settings.
+      2. С последнего сообщения прошло >= REFLECTION_COOLDOWN_HOURS (4ч).
+      3. С последней рефлексии прошло >= REFLECTION_MIN_INTERVAL_HOURS (12ч).
+    Если все условия выполнены — запускает ReflectionEngine.
+    """
+    from datetime import datetime, timedelta, timezone
+    from core.autonomy.reflection_engine import ReflectionEngine
+    from infrastructure.context_store.session_context_schema import to_serializable
+
+    global _last_reflection_time
+
+    logger.info("[reflection] Старт фонового воркера рефлексии")
+
+    while True:
+        try:
+            creator_id = settings.creator_account_id
+            if not creator_id:
+                await asyncio.sleep(300)
+                continue
+
+            db = Database.get_instance()
+            context_store = SessionContextStore(storage_path=settings.SESSION_CONTEXT_DIR)
+
+            db_session = db.get_session()
+            try:
+                session_context = context_store.load(creator_id, db_session)
+            finally:
+                db_session.close()
+
+            # Проверка cooldown: прошло ли достаточно времени с последнего сообщения
+            last_msg = session_context.last_assistant_message
+            if last_msg:
+                if last_msg.tzinfo is None:
+                    since_last = datetime.now() - last_msg
+                else:
+                    since_last = datetime.now(timezone.utc) - last_msg
+                hours_since = since_last.total_seconds() / 3600
+            else:
+                hours_since = float("inf")
+
+            cooldown_ok = hours_since >= settings.REFLECTION_COOLDOWN_HOURS
+
+            # Проверка интервала: прошло ли достаточно времени с последней рефлексии
+            if _last_reflection_time:
+                since_reflection = (datetime.now() - _last_reflection_time).total_seconds() / 3600
+                interval_ok = since_reflection >= settings.REFLECTION_MIN_INTERVAL_HOURS
+            else:
+                interval_ok = True
+
+            if cooldown_ok and interval_ok:
+                logger.info(
+                    f"[reflection] Условия выполнены: "
+                    f"{hours_since:.1f}ч с последнего сообщения, запускаем рефлексию"
+                )
+
+                # Определяем модель из ChatMeta (как в роутере)
+                from core.router.message_router import MessageTypeManager
+                mgr = MessageTypeManager(db=db, context_store=context_store)
+                llm_client = mgr._create_llm_client(creator_id)
+
+                engine = ReflectionEngine(
+                    account_id=creator_id,
+                    llm_client=llm_client,
+                )
+                await engine.run(session_context)
+                _last_reflection_time = datetime.now()
+
+                logger.info("[reflection] Рефлексия завершена")
+            else:
+                logger.debug(
+                    f"[reflection] Пропуск: cooldown={'OK' if cooldown_ok else 'WAIT'}, "
+                    f"interval={'OK' if interval_ok else 'WAIT'}"
+                )
+
+        except Exception:
+            logger.exception("[reflection] Ошибка в воркере рефлексии")
+
         await asyncio.sleep(60)
 
 

@@ -56,7 +56,7 @@ class KeyInfoPostAnalyzer:
         metadata: MessageMetadata,
         gender: Gender = None,
         session_context: Optional[SessionContext] = None,
-    ) -> None:
+    ) -> Optional[int]:
         """
         Обрабатывает сообщение пользователя, извлекает ключевую информацию и сохраняет её.
 
@@ -66,6 +66,9 @@ class KeyInfoPostAnalyzer:
             metadata: Мета-данные сообщения.
             gender: Пол пользователя (для адаптации промпта).
             session_context: Контекст сессии (если передан — можем обновлять trust/relationship в YAML/DB).
+
+        Returns:
+            impressive score (1-4) если key_info найдена, иначе None.
         """
         self.logger.info(f"[INFO] Начало обработки сообщения для account_id: {account_id}, gender: {gender}")
 
@@ -73,12 +76,12 @@ class KeyInfoPostAnalyzer:
             key_info = await self._analyze_dialogue(user_message, gender)
             if not self._is_valid_key_info(key_info):
                 self.logger.info("[INFO] Нет ключевой информации в сообщении пользователя.")
-                return
+                return None
 
             category, memory = self._parse_key_info(key_info)
             if not memory or not category:
                 self.logger.warning("[WARNING] Недостаточно данных для сохранения key_info.")
-                return
+                return None
 
             impressive = await self._rate_impressiveness(memory)
             await self._save_to_pipeline(account_id, category, memory, impressive, metadata)
@@ -88,10 +91,11 @@ class KeyInfoPostAnalyzer:
             await self._maybe_bonus_trust(account_id, session_context, impressive)
 
             self.logger.info("[INFO] ✅ Обработка key info завершена успешно.")
+            return impressive
 
         except Exception as e:
             self.logger.exception(f"[ERROR] ❌ Ошибка при обработке key info: {e}")
-            raise  # или можно убрать raise, если не нужно пробрасывать ошибку дальше
+            raise
 
     async def _maybe_bonus_trust(
         self,

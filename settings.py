@@ -55,4 +55,11 @@ class Settings(BaseSettings):
     VICTOR_CORE_ROOT: Optional[str] = None
     MODEL_SETTINGS: Optional[str] = None
 
+    # --- Autonomy ---
+    AUTONOMY_DATA_DIR: Path = BASE_DIR / os.getenv("AUTONOMY_DATA_DIR", "data/autonomy")
+    REFLECTION_COOLDOWN_HOURS: int = int(os.getenv("REFLECTION_COOLDOWN_HOURS", "4"))
+    REFLECTION_MIN_INTERVAL_HOURS: int = int(os.getenv("REFLECTION_MIN_INTERVAL_HOURS", "12"))
+    WORKBENCH_RETENTION_HOURS: int = int(os.getenv("WORKBENCH_RETENTION_HOURS", "48"))
+    VICTOR_NOTES_COLLECTION: str = os.getenv("VICTOR_NOTES_COLLECTION", "victor_notes")
+
 settings = Settings()

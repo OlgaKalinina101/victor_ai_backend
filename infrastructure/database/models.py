@@ -262,8 +262,44 @@ class Reminder(Base):
     user = relationship("ChatMeta", back_populates="reminders", lazy="selectin")
 
 
+class VictorTaskTrigger(enum.Enum):
+    TIME = "time"
+    NEXT_SESSION = "next_session"
+    MANUAL = "manual"
 
 
+class VictorTaskStatus(enum.Enum):
+    PENDING = "pending"
+    DONE = "done"
+    CANCELLED = "cancelled"
+
+
+class VictorTask(Base):
+    __tablename__ = "victor_tasks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_id = Column(
+        String,
+        ForeignKey("chat_meta.account_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text = Column(Text, nullable=False)
+    trigger_type = Column(
+        ENUM(VictorTaskTrigger, name="victortasktrigger", create_type=True),
+        nullable=False,
+        default=VictorTaskTrigger.MANUAL,
+    )
+    trigger_value = Column(String(255), nullable=True)
+    status = Column(
+        ENUM(VictorTaskStatus, name="victortaskstatus", create_type=True),
+        nullable=False,
+        default=VictorTaskStatus.PENDING,
+    )
+    source = Column(String(50), nullable=False, default="reflection")
+    created_at = Column(DateTime(timezone=True), server_default=sa.func.now(), nullable=False)
+
+    user = relationship("ChatMeta", backref="victor_tasks", lazy="selectin")
 
 
 

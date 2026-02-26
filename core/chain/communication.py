@@ -198,6 +198,7 @@ class CommunicationPipeline:
                     self._post_analyze(
                         account_id=self.account_id,
                         user_message=self.user_message,
+                        assistant_response=assistant_response,
                         metadata=metadata,
                         session_context=session_context,
                     ),
@@ -561,17 +562,36 @@ class CommunicationPipeline:
         self,
         account_id: str,
         user_message: str,
+        assistant_response: str,
         metadata: MessageMetadata,
         session_context: SessionContext,
     ) -> None:
-        """Запускает пост-анализ (фоновой)."""
-        await self.key_info_analyzer.process(
+        """Запускает пост-анализ (фоновой): key_info + автономия."""
+        impressive = await self.key_info_analyzer.process(
             account_id,
             user_message,
             metadata,
             session_context.gender if session_context else None,
             session_context=session_context,
         )
+
+        # Автономия: только для creator
+        if session_context and bool(getattr(session_context, "is_creator", False)):
+            try:
+                from core.autonomy.autonomy_post_analyzer import AutonomyPostAnalyzer
+
+                autonomy = AutonomyPostAnalyzer(
+                    account_id=account_id,
+                    llm_client=self.llm_client,
+                    session_context=session_context,
+                )
+                await autonomy.process(
+                    user_message=user_message,
+                    assistant_message=assistant_response,
+                    impressive=impressive if impressive is not None else 1,
+                )
+            except Exception as e:
+                self.logger.warning(f"[AUTONOMY] Ошибка в постанализе автономии: {e}")
 
     async def _maybe_save_debug(
             self, user_profile: UserProfile, metadata: MessageMetadata, message_history: list[str], victor_profile: VictorState,

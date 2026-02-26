@@ -39,3 +39,4 @@ ruwordnet
 Pillow~=11.0.0
 emoji>=2.0.0
 sqlalchemy==1.4.50
+duckduckgo-search>=8.0.0
