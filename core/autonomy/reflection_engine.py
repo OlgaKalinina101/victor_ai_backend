@@ -62,12 +62,24 @@ def _load_prompts() -> dict:
 # Парсер команд
 # ------------------------------------------------------------------
 
-_COMMAND_PATTERN = re.compile(
-    r"^\[("
-    r"SEARCH_MEMORIES|SEARCH_NOTES|WEB_SEARCH|"
-    r"WRITE_NOTE|WRITE_IDENTITY|"
-    r"SEND_MESSAGE|SCHEDULE_MESSAGE|CREATE_TASK|SLEEP"
-    r")(?::\s*(.*?))?\]$",
+_ACTIONS = (
+    "SEARCH_MEMORIES|SEARCH_NOTES|WEB_SEARCH|"
+    "WRITE_NOTE|WRITE_IDENTITY|"
+    "SEND_MESSAGE|SCHEDULE_MESSAGE|CREATE_TASK|SLEEP"
+)
+
+_BRACKET_PATTERN = re.compile(
+    rf"^\[({_ACTIONS})(?::\s*(.*?))?\]$",
+    re.MULTILINE,
+)
+
+_BARE_PATTERN = re.compile(
+    rf"^({_ACTIONS})\s*$",
+    re.MULTILINE,
+)
+
+_BARE_WITH_QUERY = re.compile(
+    rf"^({_ACTIONS})\n[Зз]апрос:\s*(.+)$",
     re.MULTILINE,
 )
 
@@ -76,16 +88,30 @@ def parse_commands(response: str) -> list[tuple[str, str]]:
     """
     Парсит ответ LLM и возвращает список (action, payload).
 
-    Примеры:
-        [SLEEP] → [("SLEEP", "")]
-        [WRITE_NOTE: Она улыбалась] → [("WRITE_NOTE", "Она улыбалась")]
-        [WRITE_IDENTITY: Кто я | Я — архитектор смыслов] → [("WRITE_IDENTITY", "Кто я | Я — архитектор смыслов")]
+    Поддерживает три формата:
+        [SLEEP]                         → ("SLEEP", "")
+        [SEARCH_MEMORIES: снег и весна] → ("SEARCH_MEMORIES", "снег и весна")
+        SEARCH_MEMORIES                 → ("SEARCH_MEMORIES", "")
+        SEARCH_MEMORIES\nЗапрос: снег   → ("SEARCH_MEMORIES", "снег")
     """
-    commands = _COMMAND_PATTERN.findall(response)
+    commands: list[tuple[str, str]] = []
+
+    for action, payload in _BRACKET_PATTERN.findall(response):
+        commands.append((action, payload.strip()))
+
     if not commands:
-        # Если LLM не вернул команду — считаем что он спит
+        for action, payload in _BARE_WITH_QUERY.findall(response):
+            commands.append((action, payload.strip()))
+
+    if not commands:
+        for (action,) in _BARE_PATTERN.findall(response):
+            commands.append((action, ""))
+
+    if not commands:
+        logger.warning(f"[REFLECTION] Не распознаны команды, fallback на SLEEP. Ответ LLM: {response[:200]}")
         return [("SLEEP", "")]
-    return [(action, payload.strip()) for action, payload in commands]
+
+    return commands
 
 
 # ------------------------------------------------------------------
