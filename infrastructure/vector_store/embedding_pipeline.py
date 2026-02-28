@@ -123,15 +123,17 @@ class PersonaEmbeddingPipeline:
         embeddings = [EmbeddingManager.get_embedding(t).tolist() for t in texts]
 
         metadatas = [
-            {
-                "account_id": e["account_id"],
-                "category": e["category"],
-                "subcategory": e.get("subcategory"),
-                "impressive": e.get("impressive", 1),
-                "has_critical": e.get("has_critical", False),
-                "frequency": e.get("frequency"),
-                "last_used": e.get("last_used").isoformat() if e.get("last_used") else None,
-            }
+            safe_metadata(
+                account_id=e["account_id"],
+                category=e["category"],
+                subcategory=e.get("subcategory"),
+                impressive=e.get("impressive", 1),
+                has_critical=e.get("has_critical", False),
+                frequency=e.get("frequency"),
+                last_used=e.get("last_used").isoformat() if e.get("last_used") else None,
+                source=e.get("source"),
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
             for e in entries
         ]
         ids = [e.get("id", str(uuid.uuid4())) for e in entries]

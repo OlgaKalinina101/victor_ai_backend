@@ -44,7 +44,7 @@ from settings import settings
 
 logger = setup_autonomy_logger("reflection")
 
-MAX_STEPS = 5
+MAX_STEPS = 8
 
 _PROMPTS_PATH = Path(__file__).parent / "prompts" / "reflection.yaml"
 _prompts_cache: Optional[dict] = None
@@ -184,26 +184,29 @@ class ReflectionEngine:
                 break
 
             commands = parse_commands(response)
-            logger.info(f"[REFLECTION] Шаг {step + 1}: {len(commands)} команд(а)")
+            logger.info(f"[REFLECTION] Шаг {step + 1}/{MAX_STEPS}: {len(commands)} команд(а)")
 
-            should_continue = False
+            search_results: list[str] = []
             for action, payload in commands:
-                result = await self._execute_command(action, payload, session_context)
-                if result is not None:
-                    # Есть результат поиска — нужен continuation prompt
-                    prompt = self.prompts["continuation"].format(
-                        action_type=action,
-                        query=payload,
-                        result=result,
-                    )
-                    should_continue = True
-                    break
-
                 if action == "SLEEP":
                     logger.info("[REFLECTION] Victor спит. Конец рефлексии.")
                     return
 
-            if not should_continue:
+                result = await self._execute_command(action, payload, session_context)
+                if result is not None:
+                    search_results.append(
+                        f"[{action}: {payload}]\n{result}"
+                    )
+
+            if search_results:
+                combined = "\n\n".join(search_results)
+                prompt = self.prompts["continuation"].format(
+                    action_type="SEARCH",
+                    query=f"{len(search_results)} запрос(ов)",
+                    result=combined,
+                    steps_left=MAX_STEPS - step - 1,
+                )
+            else:
                 break
 
         logger.info(f"[REFLECTION] Рефлексия завершена за {step + 1} шагов")
