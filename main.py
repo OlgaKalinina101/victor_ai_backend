@@ -297,6 +297,19 @@ async def _scheduled_push_worker() -> None:
                         continue
 
                     if scheduled_time <= now:
+                        # Сохраняем в dialogue_history
+                        try:
+                            from infrastructure.database import DialogueRepository
+                            dialogue_repo = DialogueRepository(session)
+                            dialogue_repo.save_message(
+                                account_id=creator_id,
+                                role="assistant",
+                                text=task.text,
+                                message_category="scheduled",
+                            )
+                        except Exception as e:
+                            logger.warning(f"[scheduled_push] Ошибка записи в dialogue_history: {e}")
+
                         tokens = get_user_tokens(creator_id)
                         if tokens:
                             for token in tokens:
