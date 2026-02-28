@@ -30,10 +30,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 from settings import settings
 
-logger = setup_logger("workbench")
+logger = setup_autonomy_logger("workbench")
 
 _ENTRY_HEADER = re.compile(r"^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2})$", re.MULTILINE)
 _TS_FORMAT = "%Y-%m-%d %H:%M"

@@ -406,12 +406,12 @@ class MessageAnalyzer:
         """Формирует объекты метаданных."""
         self.logger.debug("[DEBUG] Финализация анализа")
         try:
-            approved_memory = next(
-                (k for k, v in self.analysis_result.memories_result.items()
-                 if (isinstance(v, str) and v.lower() == "true") or v is True),
-                None
-            )
-            self.logger.debug(f"[DEBUG] Одобренная память: {approved_memory}")
+            approved_list = [
+                k for k, v in self.analysis_result.memories_result.items()
+                if (isinstance(v, str) and v.lower() == "true") or v is True
+            ]
+            approved_memory = "\n".join(approved_list) if approved_list else None
+            self.logger.debug(f"[DEBUG] Одобренные воспоминания ({len(approved_list)}): {approved_list}")
 
             self.user_profile = UserProfile(
                 account_id=self.account_id,

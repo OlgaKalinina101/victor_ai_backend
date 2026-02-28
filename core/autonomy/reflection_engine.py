@@ -30,19 +30,19 @@ from core.autonomy.identity_memory import IdentityMemory, SECTIONS
 from core.autonomy.notes_store import NotesStore
 from core.autonomy.task_queue import TaskQueue
 from core.autonomy.workbench import Workbench
-from core.autonomy.workbench_rotator import rotate_workbench_to_chroma
+from core.autonomy.workbench_rotator import rotate_workbench_to_chroma, rotate_with_llm
 from core.persona.system_prompt_builder import SystemPromptBuilder
 from infrastructure.context_store.session_context_schema import SessionContext
 from infrastructure.context_store.session_context_store import SessionContextStore
 from infrastructure.database.session import Database
 from infrastructure.llm.client import LLMClient
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 from infrastructure.vector_store.embedding_pipeline import PersonaEmbeddingPipeline
 from models.assistant_models import AssistantMood
 from tools.web_search.web_search_tool import web_search, format_search_results
 from settings import settings
 
-logger = setup_logger("reflection_engine")
+logger = setup_autonomy_logger("reflection")
 
 MAX_STEPS = 5
 
@@ -66,7 +66,7 @@ _COMMAND_PATTERN = re.compile(
     r"^\[("
     r"SEARCH_MEMORIES|SEARCH_NOTES|WEB_SEARCH|"
     r"WRITE_NOTE|WRITE_IDENTITY|"
-    r"SEND_MESSAGE|CREATE_TASK|SLEEP"
+    r"SEND_MESSAGE|SCHEDULE_MESSAGE|CREATE_TASK|SLEEP"
     r")(?::\s*(.*?))?\]$",
     re.MULTILINE,
 )
@@ -149,10 +149,18 @@ class ReflectionEngine:
         """Запускает одну итерацию рефлексии."""
         logger.info(f"[REFLECTION] Старт рефлексии для {self.account_id}")
 
-        # Шаг 0: ротация workbench → Chroma
-        rotated = rotate_workbench_to_chroma(self.account_id)
-        if rotated:
-            logger.info(f"[REFLECTION] Ротация: {rotated} записей перенесено в хронику")
+        # Шаг 0: ротация workbench → Chroma (с LLM-шагами: self-insight + system prompt review)
+        rotation_result = await rotate_with_llm(
+            account_id=self.account_id,
+            llm_client=self.llm_client,
+            session_context=session_context,
+        )
+        if rotation_result["rotated"]:
+            logger.info(
+                f"[REFLECTION] Ротация: {rotation_result['rotated']} записей, "
+                f"{rotation_result['insights_count']} инсайтов, "
+                f"system_prompt_change={rotation_result['system_prompt_change']}"
+            )
 
         # Шаг 1: собираем контекст пробуждения
         prompt = self._build_awakening_prompt(session_context)
@@ -315,6 +323,10 @@ class ReflectionEngine:
             await self._handle_send_message(payload, session_context)
             return None
 
+        elif action == "SCHEDULE_MESSAGE":
+            self._handle_schedule_message(payload)
+            return None
+
         elif action == "CREATE_TASK":
             self._handle_create_task(payload)
             return None
@@ -370,6 +382,11 @@ class ReflectionEngine:
                             token=token,
                             title="Victor",
                             body=text[:200],
+                            data={
+                                "type": "reflection_message",
+                                "account_id": self.account_id,
+                                "text": text,
+                            },
                         )
                     logger.info(f"[REFLECTION] SEND_MESSAGE: push отправлен ({len(tokens)} токенов)")
                 else:
@@ -384,6 +401,24 @@ class ReflectionEngine:
 
         except Exception as e:
             logger.error(f"[REFLECTION] Ошибка SEND_MESSAGE: {e}")
+
+    def _handle_schedule_message(self, payload: str) -> None:
+        """Обработка [SCHEDULE_MESSAGE: YYYY-MM-DD HH:MM | текст]."""
+        parts = payload.split("|", maxsplit=1)
+        if len(parts) != 2:
+            logger.warning(f"[REFLECTION] SCHEDULE_MESSAGE: неверный формат: {payload[:80]}")
+            return
+        time_str = parts[0].strip()
+        text = parts[1].strip()
+        try:
+            self.task_queue.create_from_payload(
+                f"{text} | time:{time_str}",
+                source="reflection",
+            )
+            logger.info(f"[REFLECTION] SCHEDULE_MESSAGE: пуш на {time_str}")
+            self.workbench.append(f"Запланировал сообщение на {time_str}: «{text[:80]}{'...' if len(text) > 80 else ''}»")
+        except Exception as e:
+            logger.error(f"[REFLECTION] Ошибка SCHEDULE_MESSAGE: {e}")
 
     def _handle_create_task(self, payload: str) -> None:
         """Обработка [CREATE_TASK: текст | trigger]."""

@@ -19,10 +19,14 @@ from pathlib import Path
 LOG_DIR = Path("logs")  # папка для логов
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "app.log"
+AUTONOMY_LOG_FILE = LOG_DIR / "autonomy.log"
+
+_LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
+_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
 def setup_logger(name: str) -> logging.Logger:
-    """Настраивает и возвращает логгер с ротацией файлов до 10 МБ."""
+    """Настраивает и возвращает логгер с записью в app.log."""
     logger = logging.getLogger(name)
 
     if logger.handlers:
@@ -30,24 +34,44 @@ def setup_logger(name: str) -> logging.Logger:
 
     logger.setLevel(logging.INFO)
 
-    # Простой FileHandler без ротации
     file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-    file_handler.setFormatter(
-        logging.Formatter(
-            "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
+    file_handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT))
 
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter(
-            "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
+    console_handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT))
 
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+    return logger
+
+
+def setup_autonomy_logger(name: str) -> logging.Logger:
+    """
+    Логгер для модулей автономии — пишет в отдельный autonomy.log.
+
+    Пишет INFO+ в файл и консоль.
+    Cron-тики и пустые проверки логируются как DEBUG и не попадают в файл.
+    Значимые события (записи, пуши, ошибки, поиск) — INFO/WARNING/ERROR.
+    """
+    logger = logging.getLogger(f"autonomy.{name}")
+
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler(AUTONOMY_LOG_FILE, encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT))
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT))
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    logger.propagate = False
 
     return logger

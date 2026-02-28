@@ -25,7 +25,7 @@ should_start_without_greeting:
   no_greeting: "Не начинай с приветствия - вы уже общались сегодня."
 memory_reaction:
   no_memory: "Ты вспомнил что-то свое."
-  with_memory: "Ты вспомнил что-то про нее."
+  with_memory: "Ты вспомнил что-то из прошлого. "
 reaction_end: "Пусть это будет как прикосновение."
 emotional_access_block:
   1: "Ты вежлив и ровен, оставляешь пространство — ещё рано для яркости."

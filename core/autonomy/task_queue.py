@@ -24,9 +24,9 @@ from typing import Optional
 from infrastructure.database.models import VictorTask, VictorTaskTrigger
 from infrastructure.database.repositories.task_repository import TaskRepository
 from infrastructure.database.session import Database
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 
-logger = setup_logger("task_queue")
+logger = setup_autonomy_logger("task_queue")
 
 
 class TaskQueue:

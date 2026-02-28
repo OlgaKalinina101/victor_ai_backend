@@ -77,10 +77,13 @@ async def lifespan(app: FastAPI):
     # Старт фонового воркера рефлексии Victor (автономия)
     app.state.reflection_task = asyncio.create_task(_reflection_worker())
 
+    # Старт воркера отложенных пушей Victor (VictorTask TIME)
+    app.state.scheduled_push_task = asyncio.create_task(_scheduled_push_worker())
+
     yield
 
     # Shutdown: останавливаем фоновые задачи
-    for task_name in ("reminders_task", "reflection_task"):
+    for task_name in ("reminders_task", "reflection_task", "scheduled_push_task"):
         task = getattr(app.state, task_name, None)
         if task:
             task.cancel()
@@ -254,8 +257,74 @@ async def _reflection_worker() -> None:
         await asyncio.sleep(60)
 
 
+# ---------- Scheduled Push Worker (VictorTask TIME) ----------
 
 
+async def _scheduled_push_worker() -> None:
+    """
+    Отдельный воркер: каждую минуту проверяет VictorTask с trigger_type=TIME
+    и отправляет пуши, если время наступило.
+    """
+    from datetime import datetime, timedelta
+    from infrastructure.database.repositories.task_repository import TaskRepository
+    from infrastructure.database.models import VictorTaskTrigger, VictorTaskStatus
+    from infrastructure.pushi.push_notifications import send_pushy_notification
+    from infrastructure.firebase.tokens import get_user_tokens
+
+    logger.info("[scheduled_push] Старт воркера отложенных пушей")
+
+    while True:
+        try:
+            creator_id = settings.creator_account_id
+            if not creator_id:
+                await asyncio.sleep(300)
+                continue
+
+            db = Database.get_instance()
+            with db.get_session() as session:
+                repo = TaskRepository(session)
+                tasks = repo.get_pending_by_trigger(creator_id, VictorTaskTrigger.TIME)
+
+                now = datetime.now()
+                for task in tasks:
+                    if not task.trigger_value:
+                        continue
+
+                    try:
+                        scheduled_time = datetime.strptime(task.trigger_value.strip(), "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        logger.warning(f"[scheduled_push] Невалидное время в задаче #{task.id}: {task.trigger_value}")
+                        continue
+
+                    if scheduled_time <= now:
+                        tokens = get_user_tokens(creator_id)
+                        if tokens:
+                            for token in tokens:
+                                try:
+                                    send_pushy_notification(
+                                        token=token,
+                                        title="Victor",
+                                        body=task.text[:200],
+                                        data={
+                                            "type": "scheduled_message",
+                                            "account_id": creator_id,
+                                            "text": task.text,
+                                            "task_id": str(task.id),
+                                        },
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"[scheduled_push] Ошибка отправки пуша: {e}")
+
+                            logger.info(f"[scheduled_push] Задача #{task.id} отправлена ({len(tokens)} токенов)")
+                        else:
+                            logger.warning(f"[scheduled_push] Нет токенов для {creator_id}")
+
+                        repo.mark_done(task.id)
+
+        except Exception:
+            logger.exception("[scheduled_push] Ошибка в воркере отложенных пушей")
+
+        await asyncio.sleep(60)
 
 
 

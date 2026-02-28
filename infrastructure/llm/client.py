@@ -38,7 +38,7 @@ class LLMClient:
                 "url": "https://api.x.ai/v1/chat/completions",
                 "bearer": settings.XAI_API_KEY,
                 "temperature": 0.5,
-                "max_tokens": 1500,
+                "max_tokens": 3000,
                 "provider": "xai",
                 "supports_vision": False
             },
@@ -47,7 +47,7 @@ class LLMClient:
                 "url": "https://api.openai.com/v1/chat/completions",
                 "bearer": settings.OPENAI_API_KEY,
                 "temperature": 0.5,
-                "max_tokens": 1500,
+                "max_tokens": 3000,
                 "provider": "openai",
                 "supports_vision": True
             },
@@ -56,7 +56,7 @@ class LLMClient:
                 "url": "https://api.deepseek.com/v1/chat/completions",
                 "bearer": settings.DEEPSEEK_API_KEY,
                 "temperature": 0.5,
-                "max_tokens": 1500,
+                "max_tokens": 3000,
                 "provider": "deepseek",
                 "supports_vision": False
             }
@@ -76,7 +76,7 @@ class LLMClient:
                       new_message: Optional[str] = None,
                       temperature: float = 0.5,
                       top_p: Optional[float] = None,
-                      max_tokens: int = 1500,
+                      max_tokens: int = 3000,
                       stream: bool = False) -> Union[str, AsyncGenerator[str, None]]:
         """
         Вызывает LLM для генерации ответа.
@@ -125,7 +125,7 @@ class LLMClient:
             new_message: str,
             temperature: float = 0.5,
             top_p: Optional[float] = None,
-            max_tokens: int = 1500
+            max_tokens: int = 3000
     ) -> AsyncGenerator[str, None]:
         """Возвращает стрим чанков."""
         self.logger.info(f"[INFO] Запуск LLM в режиме {self.mode}, stream=True")

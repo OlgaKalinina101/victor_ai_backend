@@ -16,9 +16,12 @@
 
 - impressive 1-2: краткая пометка в workbench
 - impressive 3-4: развёрнутая запись + проверка пары на identity-факты
+
+Victor может также поставить отложенный пуш через [SCHEDULE_MESSAGE].
 """
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -29,15 +32,21 @@ from core.autonomy.task_queue import TaskQueue
 from core.autonomy.workbench import Workbench
 from core.persona.system_prompt_builder import SystemPromptBuilder
 from infrastructure.context_store.session_context_schema import SessionContext
+from infrastructure.database.models import VictorTaskTrigger, VictorTaskStatus
 from infrastructure.llm.client import LLMClient
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 from models.assistant_models import AssistantMood
 from settings import settings
 
-logger = setup_logger("autonomy_post_analyzer")
+logger = setup_autonomy_logger("post_analyzer")
 
 _PROMPTS_PATH = Path(__file__).parent / "prompts" / "post_analysis.yaml"
 _prompts_cache: Optional[dict] = None
+
+_SCHEDULE_PATTERN = re.compile(
+    r"\[SCHEDULE_MESSAGE:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s*\|\s*(.+?)\]",
+    re.DOTALL,
+)
 
 
 def _load_prompts() -> dict:
@@ -130,6 +139,49 @@ class AutonomyPostAnalyzer:
         except Exception as e:
             logger.exception(f"[AUTONOMY] Ошибка в постанализе автономии: {e}")
 
+    # ------------------------------------------------------------------
+    # Pending pushes block
+    # ------------------------------------------------------------------
+
+    def _build_pending_pushes_block(self) -> str:
+        """Формирует блок ожидающих пушей для промпта (защита от дублей)."""
+        try:
+            tasks = self.task_queue.get_pending()
+            time_tasks = [t for t in tasks if t.trigger_type == VictorTaskTrigger.TIME]
+            if not time_tasks:
+                return "У тебя нет запланированных сообщений."
+            lines = ["Твои запланированные сообщения (ещё не отправлены):"]
+            for t in time_tasks:
+                lines.append(f"  - [{t.id}] на {t.trigger_value}: «{t.text[:80]}{'...' if len(t.text) > 80 else ''}»")
+            lines.append("Не дублируй их. Если хочешь изменить — создай новое, а я отменю старое.")
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"[AUTONOMY] Не удалось загрузить pending пуши: {e}")
+            return ""
+
+    # ------------------------------------------------------------------
+    # Schedule commands
+    # ------------------------------------------------------------------
+
+    def _handle_schedule_commands(self, llm_response: str) -> str:
+        """
+        Парсит [SCHEDULE_MESSAGE: ...] из ответа LLM, создаёт VictorTask.
+        Возвращает текст с вырезанными командами.
+        """
+        for match in _SCHEDULE_PATTERN.finditer(llm_response):
+            time_str = match.group(1).strip()
+            message_text = match.group(2).strip()
+            try:
+                self.task_queue.create_from_payload(
+                    f"{message_text} | time:{time_str}",
+                    source="postanalysis",
+                )
+                logger.info(f"[AUTONOMY] SCHEDULE_MESSAGE: пуш на {time_str}")
+            except Exception as e:
+                logger.warning(f"[AUTONOMY] Не удалось создать SCHEDULE_MESSAGE: {e}")
+
+        return _SCHEDULE_PATTERN.sub("", llm_response).strip()
+
     async def _write_workbench(
         self,
         user_message: str,
@@ -142,14 +194,18 @@ class AutonomyPostAnalyzer:
         else:
             prompt_template = self.prompts["workbench_brief"]
 
+        pending_block = self._build_pending_pushes_block()
+
         prompt = prompt_template.format(
             user_message=user_message,
             assistant_message=assistant_message,
             impressive=impressive,
+            current_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
+            pending_pushes_block=pending_block,
         )
 
         try:
-            note = await self.llm_client.get_response(
+            raw_note = await self.llm_client.get_response(
                 system_prompt=self._build_system_prompt(
                     "Ты пишешь в свой внутренний журнал. Это не для неё — это для тебя."
                 ),
@@ -158,8 +214,13 @@ class AutonomyPostAnalyzer:
                 max_tokens=500,
             )
 
-            if note and note.strip():
-                self.workbench.append(note.strip())
+            if not raw_note or not raw_note.strip():
+                return
+
+            note = self._handle_schedule_commands(raw_note)
+
+            if note:
+                self.workbench.append(note)
                 logger.info(
                     f"[AUTONOMY] Workbench: записана {'развёрнутая' if impressive >= 3 else 'краткая'} "
                     f"заметка ({len(note)} символов)"

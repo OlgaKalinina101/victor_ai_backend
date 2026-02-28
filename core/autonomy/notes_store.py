@@ -25,11 +25,11 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from infrastructure.embeddings.embedding_manager import EmbeddingManager
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 from infrastructure.vector_store.client import get_chroma_client
 from settings import settings
 
-logger = setup_logger("notes_store")
+logger = setup_autonomy_logger("notes_store")
 
 
 class NotesStore:

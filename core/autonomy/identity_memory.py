@@ -30,10 +30,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from infrastructure.logging.logger import setup_logger
+from infrastructure.logging.logger import setup_autonomy_logger
 from settings import settings
 
-logger = setup_logger("identity_memory")
+logger = setup_autonomy_logger("identity_memory")
 
 SECTIONS = ("Кто она", "Кто я", "Наша история", "Наши принципы")
 
