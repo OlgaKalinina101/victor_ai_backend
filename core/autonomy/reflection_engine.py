@@ -108,10 +108,25 @@ def parse_commands(response: str) -> list[tuple[str, str]]:
             commands.append((action, ""))
 
     if not commands:
+        cleaned = _extract_free_text(response)
+        if cleaned and len(cleaned) > 30:
+            logger.info(f"[REFLECTION] Свободная рефлексия ({len(cleaned)} симв.), сохраняем как WRITE_NOTE")
+            return [("WRITE_NOTE", cleaned)]
         logger.warning(f"[REFLECTION] Не распознаны команды, fallback на SLEEP. Ответ LLM: {response[:200]}")
         return [("SLEEP", "")]
 
     return commands
+
+
+_REFLECT_PATTERN = re.compile(r"\[REFLECT:\s*(.*?)\]", re.DOTALL)
+
+
+def _extract_free_text(response: str) -> str:
+    """Извлекает текст из [REFLECT: ...] блоков или возвращает весь ответ как есть."""
+    reflects = _REFLECT_PATTERN.findall(response)
+    if reflects:
+        return "\n\n".join(r.strip() for r in reflects)
+    return response.strip()
 
 
 # ------------------------------------------------------------------
@@ -213,6 +228,7 @@ class ReflectionEngine:
             logger.info(f"[REFLECTION] Шаг {step + 1}/{MAX_STEPS}: {len(commands)} команд(а)")
 
             search_results: list[str] = []
+            wrote_something = False
             for action, payload in commands:
                 if action == "SLEEP":
                     logger.info("[REFLECTION] Victor спит. Конец рефлексии.")
@@ -223,6 +239,8 @@ class ReflectionEngine:
                     search_results.append(
                         f"[{action}: {payload}]\n{result}"
                     )
+                elif action in ("WRITE_NOTE", "WRITE_IDENTITY", "SEND_MESSAGE", "SCHEDULE_MESSAGE"):
+                    wrote_something = True
 
             if search_results:
                 combined = "\n\n".join(search_results)
@@ -230,6 +248,10 @@ class ReflectionEngine:
                     action_type="SEARCH",
                     query=f"{len(search_results)} запрос(ов)",
                     result=combined,
+                    steps_left=MAX_STEPS - step - 1,
+                )
+            elif wrote_something:
+                prompt = self.prompts["after_action"].format(
                     steps_left=MAX_STEPS - step - 1,
                 )
             else:
