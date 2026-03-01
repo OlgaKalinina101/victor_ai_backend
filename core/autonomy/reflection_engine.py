@@ -36,6 +36,7 @@ from infrastructure.context_store.session_context_schema import SessionContext
 from infrastructure.context_store.session_context_store import SessionContextStore
 from infrastructure.database.session import Database
 from infrastructure.llm.client import LLMClient
+from infrastructure.context_store.session_context_store import SessionContextStore
 from infrastructure.logging.logger import setup_autonomy_logger
 from infrastructure.vector_store.embedding_pipeline import PersonaEmbeddingPipeline
 from models.assistant_models import AssistantMood
@@ -56,6 +57,20 @@ def _load_prompts() -> dict:
         with open(_PROMPTS_PATH, "r", encoding="utf-8") as f:
             _prompts_cache = yaml.safe_load(f)
     return _prompts_cache
+
+
+def _save_push_to_session_context(account_id: str, text: str) -> None:
+    """Добавляет отправленное пуш-сообщение в session_context и сохраняет YAML."""
+    try:
+        db = Database.get_instance()
+        context_store = SessionContextStore(storage_path=settings.SESSION_CONTEXT_DIR)
+        with db.get_session() as db_session:
+            ctx = context_store.load(account_id, db_session)
+        ctx.add_assistant_message(text)
+        context_store.save(ctx, update_timestamp=False)
+        logger.info(f"[PUSH→CTX] Пуш записан в session_context для {account_id}")
+    except Exception as e:
+        logger.warning(f"[PUSH→CTX] Не удалось записать пуш в session_context: {e}")
 
 
 # ------------------------------------------------------------------
@@ -425,7 +440,7 @@ class ReflectionEngine:
         return None
 
     async def _handle_send_message(self, text: str, session_context: SessionContext) -> None:
-        """Обработка [SEND_MESSAGE: текст] — push + запись в dialogue_history."""
+        """Обработка [SEND_MESSAGE: текст] — push + запись в dialogue_history + session_context."""
         try:
             db = Database.get_instance()
 
@@ -441,7 +456,10 @@ class ReflectionEngine:
                     message_category="reflection",
                 )
 
-            # 2. Push-уведомление
+            # 2. Сохраняем в session_context
+            _save_push_to_session_context(self.account_id, text)
+
+            # 3. Push-уведомление
             try:
                 from infrastructure.pushi.push_notifications import send_pushy_notification
                 from infrastructure.firebase.tokens import get_user_tokens
@@ -465,7 +483,7 @@ class ReflectionEngine:
             except Exception as e:
                 logger.warning(f"[REFLECTION] Push не удался: {e}")
 
-            # 3. Записываем факт отправки в workbench
+            # 4. Записываем факт отправки в workbench
             self.workbench.append(f"Написал ей: «{text[:100]}{'...' if len(text) > 100 else ''}»")
 
             logger.info(f"[REFLECTION] SEND_MESSAGE: сообщение отправлено")

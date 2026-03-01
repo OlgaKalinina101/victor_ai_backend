@@ -229,36 +229,16 @@ class MessageAnalyzer:
                     return text[11:]
                 return text
 
-            # 1) Сохраняем хвостовые user-сообщения без пары (если стрим оборвался/упал)
-            trailing: list[str] = []
-            i = len(messages) - 1
-            while i >= 0 and messages[i].role == "user" and len(trailing) < trailing_users_limit:
-                user_text = _strip_legacy_prefix("user", messages[i].text).strip()
-                trailing.insert(0, f"user: {user_text}")
-                i -= 1
+            # Берём последние N*2 сообщений как есть (включая assistant без пары — reflection, scheduled)
+            count = n * 2
+            tail = messages[-count:] if len(messages) >= count else messages
 
-            # 2) Добираем последние N полных пар (user + assistant)
-            pairs: list[str] = []
-            while i >= 0 and len(pairs) < n * 2:
-                m = messages[i]
-                if m.role == "assistant":
-                    # Ищем ближайшее user-сообщение ДО этого assistant
-                    j = i - 1
-                    while j >= 0 and messages[j].role != "user":
-                        j -= 1
-                    if j >= 0:
-                        user_text = _strip_legacy_prefix("user", messages[j].text).strip()
-                        asst_text = _strip_legacy_prefix("assistant", m.text).strip()
-                        pairs.insert(0, f"user: {user_text}")
-                        pairs.insert(1, f"assistant: {asst_text}")
-                        i = j - 1
-                    else:
-                        i -= 1
-                else:
-                    i -= 1
+            result: list[str] = []
+            for m in tail:
+                clean_text = _strip_legacy_prefix(m.role, m.text).strip()
+                result.append(f"{m.role}: {clean_text}")
 
-            # Возвращаем пары + хвостовые user (если были)
-            return pairs + trailing
+            return result
         except Exception as e:
             self.logger.warning(f"[WARN] Не удалось восстановить пары из БД: {e}")
             return []

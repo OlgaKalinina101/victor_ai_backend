@@ -311,6 +311,13 @@ async def _scheduled_push_worker() -> None:
                         except Exception as e:
                             logger.warning(f"[scheduled_push] Ошибка записи в dialogue_history: {e}")
 
+                        # Сохраняем в session_context
+                        try:
+                            from core.autonomy.reflection_engine import _save_push_to_session_context
+                            _save_push_to_session_context(creator_id, task.text)
+                        except Exception as e:
+                            logger.warning(f"[scheduled_push] Ошибка записи в session_context: {e}")
+
                         tokens = get_user_tokens(creator_id)
                         if tokens:
                             for token in tokens:

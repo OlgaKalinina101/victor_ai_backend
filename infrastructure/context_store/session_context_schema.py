@@ -133,26 +133,12 @@ class SessionContext:
 
     def get_last_n_pairs(self, n: int = 3) -> List[str]:
         """
-        Возвращает последние N пар (user + assistant) из message_history.
-        Пара = user-сообщение + следующее assistant-сообщение.
+        Возвращает последние N*2 сообщений из message_history,
+        включая assistant-сообщения без пары (reflection, scheduled push).
         """
-        pairs = []
-        i = len(self.message_history) - 1
-
-        # Идём с конца, ищем пары assistant -> user (в обратном порядке)
-        while i >= 0 and len(pairs) < n * 2:
-            if self.message_history[i].startswith("assistant:"):
-                # Нашли assistant, ищем user перед ним
-                if i > 0 and self.message_history[i - 1].startswith("user:"):
-                    pairs.insert(0, self.message_history[i - 1])  # user
-                    pairs.insert(1, self.message_history[i])  # assistant
-                    i -= 2
-                else:
-                    i -= 1
-            else:
-                i -= 1
-
-        return pairs
+        count = n * 2
+        tail = self.message_history[-count:] if len(self.message_history) >= count else list(self.message_history)
+        return tail
 
     def get_last_user_message(self, fallback: str = "") -> str:
         """

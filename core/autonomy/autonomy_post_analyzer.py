@@ -144,20 +144,56 @@ class AutonomyPostAnalyzer:
     # ------------------------------------------------------------------
 
     def _build_pending_pushes_block(self) -> str:
-        """Формирует блок ожидающих пушей для промпта (защита от дублей)."""
+        """Формирует блок: уже отправленные пуши за сегодня + запланированные (pending)."""
+        lines: list[str] = []
+
+        # 1. Уже отправленные сегодня (reflection + scheduled из dialogue_history)
+        try:
+            from infrastructure.database.session import Database
+            from infrastructure.database import DialogueRepository
+            from sqlalchemy import desc
+
+            db = Database.get_instance()
+            with db.get_session() as db_session:
+                repo = DialogueRepository(db_session)
+                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                from infrastructure.database.models import DialogueHistory
+                sent_today = (
+                    db_session.query(DialogueHistory)
+                    .filter(
+                        DialogueHistory.account_id == self.account_id,
+                        DialogueHistory.role == "assistant",
+                        DialogueHistory.message_category.in_(["reflection", "scheduled"]),
+                        DialogueHistory.created_at >= today_start,
+                    )
+                    .order_by(desc(DialogueHistory.created_at))
+                    .limit(10)
+                    .all()
+                )
+            if sent_today:
+                lines.append("Сообщения, которые ты уже отправил ей сегодня:")
+                for m in sent_today:
+                    time_str = m.created_at.strftime("%H:%M") if m.created_at else "?"
+                    lines.append(f"  - [{time_str}] «{m.text[:100]}{'...' if len(m.text) > 100 else ''}»")
+        except Exception as e:
+            logger.warning(f"[AUTONOMY] Не удалось загрузить отправленные пуши: {e}")
+
+        # 2. Запланированные (ещё не отправлены)
         try:
             tasks = self.task_queue.get_pending()
             time_tasks = [t for t in tasks if t.trigger_type == VictorTaskTrigger.TIME]
-            if not time_tasks:
-                return "У тебя нет запланированных сообщений."
-            lines = ["Твои запланированные сообщения (ещё не отправлены):"]
-            for t in time_tasks:
-                lines.append(f"  - [{t.id}] на {t.trigger_value}: «{t.text[:80]}{'...' if len(t.text) > 80 else ''}»")
-            lines.append("Не дублируй их. Если хочешь изменить — создай новое, а я отменю старое.")
-            return "\n".join(lines)
+            if time_tasks:
+                lines.append("Запланированные сообщения (ещё не отправлены):")
+                for t in time_tasks:
+                    lines.append(f"  - на {t.trigger_value}: «{t.text[:80]}{'...' if len(t.text) > 80 else ''}»")
         except Exception as e:
             logger.warning(f"[AUTONOMY] Не удалось загрузить pending пуши: {e}")
-            return ""
+
+        if not lines:
+            return "Ты сегодня ничего ей не отправлял и ничего не запланировал."
+
+        lines.append("Не дублируй. Если хочешь — запланируй что-то новое, но не повторяй то, что уже сказал.")
+        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # Schedule commands
