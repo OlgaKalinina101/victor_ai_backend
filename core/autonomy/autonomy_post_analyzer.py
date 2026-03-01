@@ -202,9 +202,16 @@ class AutonomyPostAnalyzer:
     def _handle_schedule_commands(self, llm_response: str) -> str:
         """
         Парсит [SCHEDULE_MESSAGE: ...] из ответа LLM, создаёт VictorTask.
+        Перед созданием — отменяет предыдущие pending TIME-задачи из postanalysis.
         Возвращает текст с вырезанными командами.
         """
-        for match in _SCHEDULE_PATTERN.finditer(llm_response):
+        matches = list(_SCHEDULE_PATTERN.finditer(llm_response))
+        if not matches:
+            return llm_response
+
+        self.task_queue.cancel_pending_time_tasks(source="postanalysis")
+
+        for match in matches:
             time_str = match.group(1).strip()
             message_text = match.group(2).strip()
             try:

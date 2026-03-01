@@ -81,6 +81,19 @@ class TaskQueue:
             repo = TaskRepository(session)
             repo.mark_done(task_id)
 
+    def cancel_pending_time_tasks(self, source: str | None = None) -> int:
+        """Отменяет все pending TIME-задачи (опционально фильтр по source). Возвращает количество."""
+        with self.db.get_session() as session:
+            repo = TaskRepository(session)
+            tasks = repo.get_pending_by_trigger(self.account_id, VictorTaskTrigger.TIME)
+            if source:
+                tasks = [t for t in tasks if t.source == source]
+            for t in tasks:
+                repo.mark_cancelled(t.id)
+            if tasks:
+                logger.info(f"[TASK] Отменено {len(tasks)} pending TIME-задач (source={source})")
+            return len(tasks)
+
     def format_for_prompt(self, tasks: list[VictorTask]) -> str:
         """Форматирует список задач для промпта рефлексии."""
         if not tasks:
