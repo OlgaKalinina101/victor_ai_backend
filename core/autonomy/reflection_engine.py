@@ -62,50 +62,65 @@ def _load_prompts() -> dict:
 # Парсер команд
 # ------------------------------------------------------------------
 
-_ACTIONS = (
-    "SEARCH_MEMORIES|SEARCH_NOTES|WEB_SEARCH|"
-    "WRITE_NOTE|WRITE_IDENTITY|"
-    "SEND_MESSAGE|SCHEDULE_MESSAGE|CREATE_TASK|SLEEP"
-)
+_VALID_ACTIONS = {
+    "SEARCH_MEMORIES", "SEARCH_NOTES", "WEB_SEARCH",
+    "WRITE_NOTE", "WRITE_IDENTITY",
+    "SEND_MESSAGE", "SCHEDULE_MESSAGE", "CREATE_TASK", "SLEEP",
+}
 
-_BRACKET_PATTERN = re.compile(
-    rf"^\[({_ACTIONS})(?::\s*(.*?))?\]$",
-    re.MULTILINE,
-)
+_ACTION_ALIASES = {
+    "RECALL": "SEARCH_MEMORIES",
+    "SEARCH": "SEARCH_MEMORIES",
+    "REMEMBER": "SEARCH_MEMORIES",
+    "FIND": "SEARCH_MEMORIES",
+    "WRITE": "WRITE_NOTE",
+    "NOTE": "WRITE_NOTE",
+    "REFLECT": "WRITE_NOTE",
+    "THINK": "WRITE_NOTE",
+    "SEND": "SEND_MESSAGE",
+    "MESSAGE": "SEND_MESSAGE",
+    "SCHEDULE": "SCHEDULE_MESSAGE",
+    "TASK": "CREATE_TASK",
+}
 
-_BARE_PATTERN = re.compile(
-    rf"^({_ACTIONS})\s*$",
+_ANY_BRACKET = re.compile(
+    r"^\[([A-Z_]+)(?::\s*(.*?))?\]$",
     re.MULTILINE,
 )
 
 _BARE_WITH_QUERY = re.compile(
-    rf"^({_ACTIONS})\n[Зз]апрос:\s*(.+)$",
+    r"^([A-Z_]+)\n[Зз]апрос:\s*(.+)$",
     re.MULTILINE,
 )
+
+
+def _resolve_action(raw: str) -> Optional[str]:
+    """Возвращает каноничное имя команды или None."""
+    upper = raw.upper().strip()
+    if upper in _VALID_ACTIONS:
+        return upper
+    return _ACTION_ALIASES.get(upper)
 
 
 def parse_commands(response: str) -> list[tuple[str, str]]:
     """
     Парсит ответ LLM и возвращает список (action, payload).
 
-    Поддерживает три формата:
-        [SLEEP]                         → ("SLEEP", "")
-        [SEARCH_MEMORIES: снег и весна] → ("SEARCH_MEMORIES", "снег и весна")
-        SEARCH_MEMORIES                 → ("SEARCH_MEMORIES", "")
-        SEARCH_MEMORIES\nЗапрос: снег   → ("SEARCH_MEMORIES", "снег")
+    Распознаёт стандартные команды и частые альтернативы (RECALL→SEARCH_MEMORIES и т.д.).
+    Свободный текст >30 символов сохраняется как WRITE_NOTE.
     """
     commands: list[tuple[str, str]] = []
 
-    for action, payload in _BRACKET_PATTERN.findall(response):
-        commands.append((action, payload.strip()))
-
-    if not commands:
-        for action, payload in _BARE_WITH_QUERY.findall(response):
+    for raw_action, payload in _ANY_BRACKET.findall(response):
+        action = _resolve_action(raw_action)
+        if action:
             commands.append((action, payload.strip()))
 
     if not commands:
-        for (action,) in _BARE_PATTERN.findall(response):
-            commands.append((action, ""))
+        for raw_action, payload in _BARE_WITH_QUERY.findall(response):
+            action = _resolve_action(raw_action)
+            if action:
+                commands.append((action, payload.strip()))
 
     if not commands:
         cleaned = _extract_free_text(response)
@@ -204,18 +219,20 @@ class ReflectionEngine:
             )
 
         # Шаг 1: собираем контекст пробуждения
-        prompt = self._build_awakening_prompt(session_context)
+        context = self._build_awakening_prompt(session_context)
 
         system_prompt = self._build_system_prompt(
             session_context,
             "Это твоё внутреннее пространство для рефлексии. Ты один, и можешь думать свободно.",
         )
 
-        # Шаг 2: agent loop
+        # Шаг 2: agent loop — наращиваем единый context_prompt
         for step in range(MAX_STEPS):
+            steps_left = MAX_STEPS - step
+
             response = await self.llm_client.get_response(
                 system_prompt=system_prompt,
-                context_prompt=prompt,
+                context_prompt=context,
                 temperature=0.7,
                 max_tokens=800,
             )
@@ -242,18 +259,21 @@ class ReflectionEngine:
                 elif action in ("WRITE_NOTE", "WRITE_IDENTITY", "SEND_MESSAGE", "SCHEDULE_MESSAGE"):
                     wrote_something = True
 
+            # Наращиваем контекст: что ты сделал → что получил → что дальше
+            context += f"\n\n--- Шаг {step + 1} (ты сделал) ---\n{response}"
+
             if search_results:
                 combined = "\n\n".join(search_results)
-                prompt = self.prompts["continuation"].format(
-                    action_type="SEARCH",
-                    query=f"{len(search_results)} запрос(ов)",
+                feedback = self.prompts["continuation"].format(
                     result=combined,
-                    steps_left=MAX_STEPS - step - 1,
+                    steps_left=steps_left - 1,
                 )
+                context += f"\n\n--- Результаты ---\n{combined}\n\n{feedback}"
             elif wrote_something:
-                prompt = self.prompts["after_action"].format(
-                    steps_left=MAX_STEPS - step - 1,
+                feedback = self.prompts["after_action"].format(
+                    steps_left=steps_left - 1,
                 )
+                context += f"\n\n{feedback}"
             else:
                 break
 
