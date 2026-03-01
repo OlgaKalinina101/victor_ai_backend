@@ -26,6 +26,7 @@ from typing import Optional
 
 import yaml
 
+from core.analysis.preanalysis.preanalysis_helpers import humanize_timestamp
 from core.autonomy.identity_memory import IdentityMemory, SECTIONS
 from core.autonomy.notes_store import NotesStore
 from core.autonomy.task_queue import TaskQueue
@@ -375,7 +376,10 @@ class ReflectionEngine:
             )
             if not results:
                 return "Ничего не найдено в воспоминаниях."
-            formatted = "\n".join(f"- {r['text']}" for r in results)
+            formatted = "\n".join(
+                f"- {humanize_timestamp(r.get('metadata', {}).get('created_at'))}: {r['text']}"
+                for r in results
+            )
             logger.info(f"[REFLECTION] SEARCH_MEMORIES: {len(results)} результатов")
             return formatted
 
@@ -387,7 +391,10 @@ class ReflectionEngine:
             )
             if not results:
                 return "Ничего не найдено в хронике заметок."
-            formatted = "\n".join(f"- {r['text']}" for r in results)
+            formatted = "\n".join(
+                f"- {humanize_timestamp(r.get('metadata', {}).get('created_at'))}: {r['text']}"
+                for r in results
+            )
             logger.info(f"[REFLECTION] SEARCH_NOTES: {len(results)} результатов")
             return formatted
 

@@ -180,13 +180,17 @@ async def execute_commands(response: str, ctx: dict) -> str | None:
             continue
 
         elif action == "SEARCH_MEMORIES":
+            from core.analysis.preanalysis.preanalysis_helpers import humanize_timestamp
             hits = pipeline.query_similar_multi(
                 account_id=account_id,
                 message=payload,
                 top_k=7,
             )
             if hits:
-                formatted = "\n".join(f"- {r['text']}" for r in hits)
+                formatted = "\n".join(
+                    f"- {humanize_timestamp(r.get('metadata', {}).get('created_at'))}: {r['text']}"
+                    for r in hits
+                )
                 results.append(f"[Результат поиска в воспоминаниях по «{payload}»]:\n{formatted}")
                 print(f"\n  📎 Найдено {len(hits)} воспоминаний по «{payload}»")
             else:
@@ -194,9 +198,13 @@ async def execute_commands(response: str, ctx: dict) -> str | None:
                 print(f"\n  📎 Ничего не найдено по «{payload}»")
 
         elif action == "SEARCH_NOTES":
+            from core.analysis.preanalysis.preanalysis_helpers import humanize_timestamp
             hits = notes_store.search(query=payload, account_id=account_id, top_k=5)
             if hits:
-                formatted = "\n".join(f"- {r['text']}" for r in hits)
+                formatted = "\n".join(
+                    f"- {humanize_timestamp(r.get('metadata', {}).get('created_at'))}: {r['text']}"
+                    for r in hits
+                )
                 results.append(f"[Результат поиска в заметках по «{payload}»]:\n{formatted}")
                 print(f"\n  📎 Найдено {len(hits)} заметок по «{payload}»")
             else:
