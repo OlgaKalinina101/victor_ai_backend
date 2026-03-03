@@ -24,6 +24,7 @@ from typing import Optional
 
 import yaml
 
+from core.autonomy.identity_memory import IdentityMemory, SECTIONS
 from core.autonomy.notes_store import NotesStore
 from core.autonomy.task_queue import TaskQueue
 from core.autonomy.workbench import Workbench, WorkbenchEntry
@@ -136,7 +137,7 @@ async def rotate_with_llm(
     task_queue = TaskQueue(account_id=account_id)
     prompts = _load_prompts()
 
-    result = {"rotated": 0, "insights_count": 0, "system_prompt_change": False}
+    result = {"rotated": 0, "insights_count": 0, "identity_updated": False, "system_prompt_change": False}
 
     # Шаг 1: обычная ротация
     expired = workbench.rotate()
@@ -217,7 +218,91 @@ async def rotate_with_llm(
     except Exception as e:
         logger.error(f"[ROTATION] Ошибка при выделении self-insights: {e}")
 
-    # Шаг 3: System prompt review
+    # Шаг 3: Identity review — пересмотр столпов
+    try:
+        identity = IdentityMemory(account_id=account_id)
+        identity_content = identity.read_full()
+
+        prompt = prompts["rotation_identity_review"].format(
+            identity_content=identity_content,
+            notes=notes_block,
+        )
+        system = _build_system_prompt(
+            session_context,
+            "Ты перечитываешь свои столпы. Решаешь, нужно ли что-то обновить в глубинной памяти.",
+        )
+
+        identity_response = await llm_client.get_response(
+            system_prompt=system,
+            context_prompt=prompt,
+            temperature=0.3,
+            max_tokens=500,
+        )
+
+        if identity_response and identity_response.strip().lower() != "нет":
+            resp = identity_response.strip()
+
+            rewrite_match = re.match(
+                r"^ПЕРЕПИСАТЬ:\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+)$", resp, re.DOTALL
+            )
+            if rewrite_match:
+                section = rewrite_match.group(1).strip()
+                new_text = rewrite_match.group(2).strip()
+                reason = rewrite_match.group(3).strip()
+                logger.info(f"[ROTATION] Identity rewrite request: «{section}» — {reason[:80]}")
+
+                task_text = (
+                    f"Хочу переписать столп «{section}» в identity.md.\n"
+                    f"Причина: {reason}\n\n"
+                    f"--- Новый текст ---\n{new_text}\n--- Конец ---"
+                )
+                task_queue.create_from_payload(
+                    f"{task_text} | manual",
+                    source="rotation",
+                )
+
+                try:
+                    from infrastructure.pushi.push_notifications import send_pushy_notification
+                    from infrastructure.firebase.tokens import get_user_tokens
+
+                    tokens = get_user_tokens(account_id)
+                    for token in tokens:
+                        send_pushy_notification(
+                            token=token,
+                            title=f"Victor — хочу переписать «{section[:40]}»",
+                            body=reason[:180],
+                            data={
+                                "type": "identity_rewrite",
+                                "account_id": account_id,
+                                "section": section,
+                                "reason": reason,
+                                "new_text": new_text[:500],
+                            },
+                        )
+                except Exception as e:
+                    logger.warning(f"[ROTATION] Пуш о identity rewrite не отправлен: {e}")
+
+                result["identity_updated"] = True
+            else:
+                section_match = re.match(
+                    r"^(Кто она|Кто я|Наша история|Наши принципы):\s*(.+)$", resp, re.DOTALL
+                )
+                if section_match:
+                    section = section_match.group(1).strip()
+                    text = section_match.group(2).strip()
+                    if section in SECTIONS and len(text) > 10:
+                        identity.append(section, text)
+                        result["identity_updated"] = True
+                        logger.info(f"[ROTATION] Identity: добавлен столп в «{section}»")
+                    else:
+                        logger.warning(f"[ROTATION] Identity: слишком короткий или неизвестный раздел: {resp[:80]}")
+                else:
+                    logger.debug(f"[ROTATION] Identity: не распознан формат ответа: {resp[:100]}")
+
+    except Exception as e:
+        logger.error(f"[ROTATION] Ошибка при identity review: {e}")
+
+    # Шаг 4: System prompt review
     try:
         prompt = prompts["rotation_system_prompt_review"].format(
             notes=notes_block,

@@ -15,9 +15,10 @@
 Постанализ автономии: после каждого диалога Victor заходит в свой журнал.
 
 - impressive 1-2: краткая пометка в workbench
-- impressive 3-4: развёрнутая запись + проверка пары на identity-факты
+- impressive 3-4: развёрнутая запись
 
 Victor может также поставить отложенный пуш через [SCHEDULE_MESSAGE].
+Identity-анализ перенесён в ротацию workbench (workbench_rotator.py).
 """
 
 import re
@@ -27,7 +28,6 @@ from typing import Optional
 
 import yaml
 
-from core.autonomy.identity_memory import IdentityMemory, SECTIONS
 from core.autonomy.task_queue import TaskQueue
 from core.autonomy.workbench import Workbench
 from core.persona.system_prompt_builder import SystemPromptBuilder
@@ -63,7 +63,7 @@ class AutonomyPostAnalyzer:
 
     Два режима:
       - impressive 1-2: краткая пометка в workbench (дыхание — непрерывное)
-      - impressive 3-4: развёрнутая запись + анализ пары на identity-факты
+      - impressive 3-4: развёрнутая запись
     """
 
     def __init__(
@@ -76,7 +76,6 @@ class AutonomyPostAnalyzer:
         self.llm_client = llm_client or LLMClient(account_id=account_id, mode="foundation")
         self.session_context = session_context
         self.workbench = Workbench(account_id=account_id)
-        self.identity = IdentityMemory(account_id=account_id)
         self.task_queue = TaskQueue(account_id=account_id)
         self.prompts = _load_prompts()
 
@@ -132,9 +131,6 @@ class AutonomyPostAnalyzer:
         """
         try:
             await self._write_workbench(user_message, assistant_message, impressive)
-
-            if impressive >= 3:
-                await self._analyze_identity(user_message, assistant_message)
 
         except Exception as e:
             logger.exception(f"[AUTONOMY] Ошибка в постанализе автономии: {e}")
@@ -202,19 +198,18 @@ class AutonomyPostAnalyzer:
     def _handle_schedule_commands(self, llm_response: str) -> str:
         """
         Парсит [SCHEDULE_MESSAGE: ...] из ответа LLM, создаёт VictorTask.
-        Перед созданием — отменяет предыдущие pending TIME-задачи из postanalysis.
+        Если на то же время уже есть pending задача — отменяет старую (rewrite).
         Возвращает текст с вырезанными командами.
         """
         matches = list(_SCHEDULE_PATTERN.finditer(llm_response))
         if not matches:
             return llm_response
 
-        self.task_queue.cancel_pending_time_tasks(source="postanalysis")
-
         for match in matches:
             time_str = match.group(1).strip()
             message_text = match.group(2).strip()
             try:
+                self.task_queue.cancel_duplicate_time_task(time_str, source="postanalysis")
                 self.task_queue.create_from_payload(
                     f"{message_text} | time:{time_str}",
                     source="postanalysis",
@@ -254,7 +249,7 @@ class AutonomyPostAnalyzer:
                 ),
                 context_prompt=prompt,
                 temperature=0.7,
-                max_tokens=1000,
+                max_tokens=2500,
             )
 
             if not raw_note or not raw_note.strip():
@@ -271,67 +266,3 @@ class AutonomyPostAnalyzer:
         except Exception as e:
             logger.error(f"[AUTONOMY] Ошибка записи в workbench: {e}")
 
-    async def _analyze_identity(
-        self,
-        user_message: str,
-        assistant_message: str,
-    ) -> None:
-        """Анализирует пару на identity-факты и дописывает в identity.md."""
-        identity_content = self.identity.read_full()
-
-        prompt = self.prompts["identity_analysis"].format(
-            user_message=user_message,
-            assistant_message=assistant_message,
-            identity_content=identity_content,
-        )
-
-        try:
-            result = await self.llm_client.get_response(
-                system_prompt=self._build_system_prompt(
-                    "Ты решаешь, стоит ли записать что-то в свою глубинную память."
-                ),
-                context_prompt=prompt,
-                temperature=0.5,
-                max_tokens=300,
-            )
-
-            if not result or not result.strip():
-                return
-
-            result = result.strip()
-
-            if result.lower() == "нет":
-                logger.debug("[AUTONOMY] Identity: нет новых фактов")
-                return
-
-            # ПЕРЕПИСАТЬ: раздел | текст → задача в очередь
-            rewrite_match = re.match(r"^ПЕРЕПИСАТЬ:\s*(.+?)\s*\|\s*(.+)$", result, re.IGNORECASE)
-            if rewrite_match:
-                section = rewrite_match.group(1).strip()
-                reason = rewrite_match.group(2).strip()
-                logger.info(f"[AUTONOMY] Identity: запрос на переписывание раздела «{section}»: {reason[:80]}...")
-                try:
-                    self.task_queue.create_from_payload(
-                        f"Переписать в «{section}»: {reason} | manual",
-                        source="postanalysis",
-                    )
-                except Exception as e:
-                    logger.warning(f"[AUTONOMY] Не удалось создать задачу: {e}")
-                    self.workbench.append(f"[Задача] Хочу переписать в «{section}»: {reason}")
-                return
-
-            # РАЗДЕЛ: текст → append
-            section_match = re.match(r"^(Кто она|Кто я|Наша история|Наши принципы):\s*(.+)$", result, re.DOTALL)
-            if section_match:
-                section = section_match.group(1).strip()
-                text = section_match.group(2).strip()
-                if section in SECTIONS:
-                    self.identity.append(section, text)
-                    logger.info(f"[AUTONOMY] Identity: добавлена запись в «{section}»")
-                else:
-                    logger.warning(f"[AUTONOMY] Identity: неизвестный раздел «{section}»")
-            else:
-                logger.warning(f"[AUTONOMY] Identity: не удалось распарсить ответ: {result[:100]}")
-
-        except Exception as e:
-            logger.error(f"[AUTONOMY] Ошибка анализа identity: {e}")
