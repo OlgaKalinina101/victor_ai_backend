@@ -254,7 +254,7 @@ class AutonomyPostAnalyzer:
                 ),
                 context_prompt=prompt,
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=1000,
             )
 
             if not raw_note or not raw_note.strip():
