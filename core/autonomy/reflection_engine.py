@@ -250,7 +250,7 @@ class ReflectionEngine:
                 system_prompt=system_prompt,
                 context_prompt=context,
                 temperature=0.7,
-                max_tokens=800,
+                max_tokens=1500,
             )
 
             if not response or not response.strip():
