@@ -261,10 +261,99 @@ async def _reflection_worker() -> None:
 # ---------- Scheduled Push Worker (VictorTask TIME) ----------
 
 
+async def _validate_scheduled_push(
+    creator_id: str,
+    task_text: str,
+    session_context,
+) -> tuple[str, str]:
+    """
+    Victor пересматривает запланированный пуш в контексте последнего диалога.
+
+    Returns:
+        (action, text) — action is "send" / "rewrite" / "cancel";
+        text is final message to send (original or rewritten).
+    """
+    import re
+    from pathlib import Path
+    import yaml
+
+    from core.autonomy.workbench import Workbench
+    from core.autonomy.workbench_rotator import _build_system_prompt
+    from infrastructure.llm.client import LLMClient
+
+    prompts_path = Path(__file__).parent / "core" / "autonomy" / "prompts" / "post_analysis.yaml"
+    with open(prompts_path, "r", encoding="utf-8") as f:
+        prompts = yaml.safe_load(f)
+
+    template = prompts.get("validate_scheduled_push")
+    if not template:
+        logger.warning("[scheduled_push] Промпт validate_scheduled_push не найден, отправляем как есть")
+        return "send", task_text
+
+    from datetime import datetime
+
+    dialogue_lines = session_context.get_last_n_pairs(6)
+    dialogue_history = "\n".join(dialogue_lines) if dialogue_lines else "(нет сообщений)"
+
+    workbench = Workbench(account_id=creator_id)
+    workbench_notes = workbench.read_full().strip() or "(пусто)"
+
+    last_update = session_context.last_update
+    last_message_time = last_update.strftime("%Y-%m-%d %H:%M") if last_update else "неизвестно"
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    context_prompt = template.format(
+        last_message_time=last_message_time,
+        current_time=current_time,
+        dialogue_history=dialogue_history,
+        workbench_notes=workbench_notes,
+        planned_message=task_text,
+    )
+
+    system_prompt = _build_system_prompt(
+        session_context,
+        "Ты решаешь, отправлять ли запланированное сообщение.",
+    )
+
+    try:
+        llm = LLMClient(account_id=creator_id, mode="foundation")
+        response = await llm.get_response(
+            system_prompt=system_prompt,
+            context_prompt=context_prompt,
+            temperature=0.3,
+            max_tokens=500,
+        )
+
+        if not response or not response.strip():
+            return "send", task_text
+
+        resp = response.strip()
+
+        if resp.startswith("ОТМЕНИТЬ"):
+            logger.info(f"[scheduled_push] LLM решил ОТМЕНИТЬ пуш: {task_text[:60]}...")
+            return "cancel", ""
+
+        rewrite_match = re.match(r"^ПЕРЕПИСАТЬ:\s*(.+)$", resp, re.DOTALL)
+        if rewrite_match:
+            new_text = rewrite_match.group(1).strip()
+            logger.info(f"[scheduled_push] LLM ПЕРЕПИСАЛ пуш: {new_text[:60]}...")
+            return "rewrite", new_text
+
+        if resp.startswith("ОТПРАВИТЬ"):
+            return "send", task_text
+
+        logger.warning(f"[scheduled_push] Неизвестный ответ LLM: {resp[:100]}, отправляем как есть")
+        return "send", task_text
+
+    except Exception as e:
+        logger.warning(f"[scheduled_push] Ошибка LLM-валидации: {e}, отправляем как есть")
+        return "send", task_text
+
+
 async def _scheduled_push_worker() -> None:
     """
     Отдельный воркер: каждую минуту проверяет VictorTask с trigger_type=TIME
-    и отправляет пуши, если время наступило.
+    и отправляет пуши, если время наступило. Перед отправкой — LLM-валидация.
     """
     from datetime import datetime, timedelta
     from infrastructure.database.repositories.task_repository import TaskRepository
@@ -298,6 +387,26 @@ async def _scheduled_push_worker() -> None:
                         continue
 
                     if scheduled_time <= now:
+                        # LLM-валидация: Victor пересматривает сообщение
+                        context_store = SessionContextStore(storage_path=settings.SESSION_CONTEXT_DIR)
+                        try:
+                            session_context = context_store.load(creator_id, session)
+                        except Exception as e:
+                            logger.warning(f"[scheduled_push] Не удалось загрузить session_context: {e}")
+                            session_context = None
+
+                        if session_context:
+                            action, final_text = await _validate_scheduled_push(
+                                creator_id, task.text, session_context,
+                            )
+                        else:
+                            action, final_text = "send", task.text
+
+                        if action == "cancel":
+                            repo.mark_done(task.id)
+                            logger.info(f"[scheduled_push] Задача #{task.id} ОТМЕНЕНА Victor'ом")
+                            continue
+
                         # Сохраняем в dialogue_history
                         try:
                             from infrastructure.database import DialogueRepository
@@ -305,7 +414,7 @@ async def _scheduled_push_worker() -> None:
                             dialogue_repo.save_message(
                                 account_id=creator_id,
                                 role="assistant",
-                                text=task.text,
+                                text=final_text,
                                 message_category="scheduled",
                             )
                         except Exception as e:
@@ -314,7 +423,7 @@ async def _scheduled_push_worker() -> None:
                         # Сохраняем в session_context
                         try:
                             from core.autonomy.reflection_engine import _save_push_to_session_context
-                            _save_push_to_session_context(creator_id, task.text)
+                            _save_push_to_session_context(creator_id, final_text)
                         except Exception as e:
                             logger.warning(f"[scheduled_push] Ошибка записи в session_context: {e}")
 
@@ -325,11 +434,11 @@ async def _scheduled_push_worker() -> None:
                                     send_pushy_notification(
                                         token=token,
                                         title="Victor",
-                                        body=task.text[:200],
+                                        body=final_text[:200],
                                         data={
                                             "type": "scheduled_message",
                                             "account_id": creator_id,
-                                            "text": task.text,
+                                            "text": final_text,
                                             "task_id": str(task.id),
                                         },
                                     )
