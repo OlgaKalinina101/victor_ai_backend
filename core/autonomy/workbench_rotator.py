@@ -156,25 +156,8 @@ async def rotate_with_llm(
 
     notes_block = _format_notes_block(expired)
 
-    # core_identity + role/trend variants из system.yaml
-    builder = SystemPromptBuilder()
-    yaml_data = builder.yaml_data
-    core_identity_text = yaml_data.get("core_identity", "")
-
-    role_variants = yaml_data.get("role_variants", {})
-    trend_variants = yaml_data.get("trend_variants", {})
-    roles_block = "\n".join(f"  {k}: {v}" for k, v in role_variants.items()) if role_variants else ""
-    trends_lines = []
-    for gender, levels in (trend_variants or {}).items():
-        for level, desc in (levels or {}).items():
-            trends_lines.append(f"  {gender}/{level}: {desc}")
-    trends_block = "\n".join(trends_lines)
-
-    persona_context = core_identity_text
-    if roles_block:
-        persona_context += f"\n\nТвои роли в зависимости от уровня отношений:\n{roles_block}"
-    if trends_block:
-        persona_context += f"\n\nТвой тон в зависимости от пола и уровня отношений:\n{trends_block}"
+    # Собираем system prompt для creator'а (конкретная роль + тренд)
+    persona_context = _build_system_prompt(session_context)
 
     # Шаг 2: Self-insight
     try:

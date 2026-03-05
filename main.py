@@ -370,6 +370,8 @@ async def _scheduled_push_worker() -> None:
                 await asyncio.sleep(300)
                 continue
 
+            # Фаза 1: собираем созревшие задачи и СРАЗУ помечаем done (внутри DB-сессии)
+            due_tasks: list[tuple[int, str]] = []
             db = Database.get_instance()
             with db.get_session() as session:
                 repo = TaskRepository(session)
@@ -379,7 +381,6 @@ async def _scheduled_push_worker() -> None:
                 for task in tasks:
                     if not task.trigger_value:
                         continue
-
                     try:
                         scheduled_time = datetime.strptime(task.trigger_value.strip(), "%Y-%m-%d %H:%M")
                     except ValueError:
@@ -387,30 +388,37 @@ async def _scheduled_push_worker() -> None:
                         continue
 
                     if scheduled_time <= now:
-                        # LLM-валидация: Victor пересматривает сообщение
-                        context_store = SessionContextStore(storage_path=settings.SESSION_CONTEXT_DIR)
+                        repo.mark_done(task.id)
+                        due_tasks.append((task.id, task.text))
+
+            # Фаза 2: обработка задач (LLM-валидация, отправка) — вне DB-сессии
+            for task_id, task_text in due_tasks:
+                try:
+                    context_store = SessionContextStore(storage_path=settings.SESSION_CONTEXT_DIR)
+                    db2 = Database.get_instance()
+                    with db2.get_session() as session2:
                         try:
-                            session_context = context_store.load(creator_id, session)
+                            session_context = context_store.load(creator_id, session2)
                         except Exception as e:
                             logger.warning(f"[scheduled_push] Не удалось загрузить session_context: {e}")
                             session_context = None
 
-                        if session_context:
-                            action, final_text = await _validate_scheduled_push(
-                                creator_id, task.text, session_context,
-                            )
-                        else:
-                            action, final_text = "send", task.text
+                    if session_context:
+                        action, final_text = await _validate_scheduled_push(
+                            creator_id, task_text, session_context,
+                        )
+                    else:
+                        action, final_text = "send", task_text
 
-                        if action == "cancel":
-                            repo.mark_done(task.id)
-                            logger.info(f"[scheduled_push] Задача #{task.id} ОТМЕНЕНА Victor'ом")
-                            continue
+                    if action == "cancel":
+                        logger.info(f"[scheduled_push] Задача #{task_id} ОТМЕНЕНА Victor'ом")
+                        continue
 
-                        # Сохраняем в dialogue_history
+                    # Сохраняем в dialogue_history
+                    with db2.get_session() as session3:
                         try:
                             from infrastructure.database import DialogueRepository
-                            dialogue_repo = DialogueRepository(session)
+                            dialogue_repo = DialogueRepository(session3)
                             dialogue_repo.save_message(
                                 account_id=creator_id,
                                 role="assistant",
@@ -420,36 +428,37 @@ async def _scheduled_push_worker() -> None:
                         except Exception as e:
                             logger.warning(f"[scheduled_push] Ошибка записи в dialogue_history: {e}")
 
-                        # Сохраняем в session_context
-                        try:
-                            from core.autonomy.reflection_engine import _save_push_to_session_context
-                            _save_push_to_session_context(creator_id, final_text)
-                        except Exception as e:
-                            logger.warning(f"[scheduled_push] Ошибка записи в session_context: {e}")
+                    # Сохраняем в session_context
+                    try:
+                        from core.autonomy.reflection_engine import _save_push_to_session_context
+                        _save_push_to_session_context(creator_id, final_text)
+                    except Exception as e:
+                        logger.warning(f"[scheduled_push] Ошибка записи в session_context: {e}")
 
-                        tokens = get_user_tokens(creator_id)
-                        if tokens:
-                            for token in tokens:
-                                try:
-                                    send_pushy_notification(
-                                        token=token,
-                                        title="Victor",
-                                        body=final_text[:200],
-                                        data={
-                                            "type": "scheduled_message",
-                                            "account_id": creator_id,
-                                            "text": final_text,
-                                            "task_id": str(task.id),
-                                        },
-                                    )
-                                except Exception as e:
-                                    logger.warning(f"[scheduled_push] Ошибка отправки пуша: {e}")
+                    tokens = get_user_tokens(creator_id)
+                    if tokens:
+                        for token in tokens:
+                            try:
+                                send_pushy_notification(
+                                    token=token,
+                                    title="Victor",
+                                    body=final_text[:200],
+                                    data={
+                                        "type": "scheduled_message",
+                                        "account_id": creator_id,
+                                        "text": final_text,
+                                        "task_id": str(task_id),
+                                    },
+                                )
+                            except Exception as e:
+                                logger.warning(f"[scheduled_push] Ошибка отправки пуша: {e}")
 
-                            logger.info(f"[scheduled_push] Задача #{task.id} отправлена ({len(tokens)} токенов)")
-                        else:
-                            logger.warning(f"[scheduled_push] Нет токенов для {creator_id}")
+                        logger.info(f"[scheduled_push] Задача #{task_id} отправлена ({len(tokens)} токенов)")
+                    else:
+                        logger.warning(f"[scheduled_push] Нет токенов для {creator_id}")
 
-                        repo.mark_done(task.id)
+                except Exception:
+                    logger.exception(f"[scheduled_push] Ошибка обработки задачи #{task_id}")
 
         except Exception:
             logger.exception("[scheduled_push] Ошибка в воркере отложенных пушей")
