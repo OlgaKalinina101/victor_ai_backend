@@ -334,6 +334,51 @@ class DialogueRepository:
         logger.debug(f"Найдено {len(messages)} сообщений с emoji '{emoji}' для {account_id}")
         return messages
     
+    def search_by_date_range(
+        self,
+        account_id: str,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        text_query: Optional[str] = None,
+        limit: int = 30,
+    ) -> List[DialogueHistory]:
+        """
+        Read-only поиск по истории диалогов с фильтром по дате и/или тексту.
+
+        Args:
+            account_id: ID пользователя
+            date_from: Начало периода (включительно)
+            date_to: Конец периода (включительно)
+            text_query: Подстрока для поиска в тексте (ILIKE)
+            limit: Максимум записей
+
+        Returns:
+            Список DialogueHistory от старых к новым
+        """
+        query = self.session.query(DialogueHistory).filter(
+            DialogueHistory.account_id == account_id
+        )
+
+        if date_from:
+            query = query.filter(DialogueHistory.created_at >= date_from)
+        if date_to:
+            query = query.filter(DialogueHistory.created_at <= date_to)
+        if text_query:
+            query = query.filter(DialogueHistory.text.ilike(f"%{text_query}%"))
+
+        messages = (
+            query.order_by(desc(DialogueHistory.created_at))
+            .limit(limit)
+            .all()
+        )
+        messages.reverse()
+
+        logger.debug(
+            f"search_by_date_range: {len(messages)} записей "
+            f"(from={date_from}, to={date_to}, q={text_query!r})"
+        )
+        return messages
+
     def get_count(self, account_id: str) -> int:
         """
         Возвращает общее количество сообщений пользователя.

@@ -16,7 +16,7 @@ Reflection Engine — ядро автономного мышления Victor.
 
 Запускается cron-воркером каждые 12+ часов (при условии cooldown 4ч с последнего диалога).
 Мини agent loop: Victor получает контекст, решает что делать, и может выполнить
-до MAX_STEPS действий за одну итерацию рефлексии.
+до BASE_STEPS действий за одну итерацию рефлексии (с возможностью extend).
 """
 
 import re
@@ -46,7 +46,10 @@ from settings import settings
 
 logger = setup_autonomy_logger("reflection")
 
-MAX_STEPS = 8
+BASE_STEPS = 8
+EXTEND_ASK_BEFORE = 2          # спросить за 2 шага до конца
+MAX_EXTEND_PER_ASK = 5         # максимум +5 шагов за один запрос
+MAX_EXTEND_ASKS = 3            # спросить можно до 3 раз
 
 _PROMPTS_PATH = Path(__file__).parent / "prompts" / "reflection.yaml"
 _prompts_cache: Optional[dict] = None
@@ -79,9 +82,10 @@ def _save_push_to_session_context(account_id: str, text: str) -> None:
 # ------------------------------------------------------------------
 
 _VALID_ACTIONS = {
-    "SEARCH_MEMORIES", "SEARCH_NOTES", "WEB_SEARCH",
+    "SEARCH_MEMORIES", "SEARCH_NOTES", "SEARCH_DIALOGUE", "WEB_SEARCH",
     "WRITE_NOTE", "WRITE_IDENTITY",
-    "SEND_MESSAGE", "SCHEDULE_MESSAGE", "CREATE_TASK", "SLEEP",
+    "SEND_MESSAGE", "SCHEDULE_MESSAGE", "CREATE_TASK",
+    "EXTEND", "SLEEP",
 }
 
 _ACTION_ALIASES = {
@@ -89,6 +93,8 @@ _ACTION_ALIASES = {
     "SEARCH": "SEARCH_MEMORIES",
     "REMEMBER": "SEARCH_MEMORIES",
     "FIND": "SEARCH_MEMORIES",
+    "DIALOGUE": "SEARCH_DIALOGUE",
+    "HISTORY": "SEARCH_DIALOGUE",
     "WRITE": "WRITE_NOTE",
     "NOTE": "WRITE_NOTE",
     "REFLECT": "WRITE_NOTE",
@@ -169,7 +175,7 @@ class ReflectionEngine:
     Agent loop для фонового пробуждения Victor.
 
     Собирает контекст → вызывает LLM → парсит команды → выполняет →
-    при необходимости повторяет (до MAX_STEPS шагов).
+    при необходимости повторяет (до BASE_STEPS шагов, с возможностью extend).
     """
 
     def __init__(self, account_id: str, llm_client: LLMClient):
@@ -243,8 +249,24 @@ class ReflectionEngine:
         )
 
         # Шаг 2: agent loop — наращиваем единый context_prompt
-        for step in range(MAX_STEPS):
-            steps_left = MAX_STEPS - step
+        max_steps = BASE_STEPS
+        extends_asked = 0
+        step = 0
+
+        while step < max_steps:
+            steps_left = max_steps - step
+
+            # За EXTEND_ASK_BEFORE шагов до конца — предлагаем продлить
+            if (
+                steps_left == EXTEND_ASK_BEFORE
+                and extends_asked < MAX_EXTEND_ASKS
+            ):
+                extend_prompt = self.prompts["extend_offer"].format(
+                    step=step + 1,
+                    max_steps=max_steps,
+                    max_extend=MAX_EXTEND_PER_ASK,
+                )
+                context += f"\n\n{extend_prompt}"
 
             response = await self.llm_client.get_response(
                 system_prompt=system_prompt,
@@ -258,11 +280,31 @@ class ReflectionEngine:
                 break
 
             commands = parse_commands(response)
-            logger.info(f"[REFLECTION] Шаг {step + 1}/{MAX_STEPS}: {len(commands)} команд(а)")
+            logger.info(f"[REFLECTION] Шаг {step + 1}/{max_steps}: {len(commands)} команд(а)")
+
+            # Обработка EXTEND до остальных команд
+            extended = False
+            remaining_commands = []
+            for action, payload in commands:
+                if action == "EXTEND" and extends_asked < MAX_EXTEND_ASKS:
+                    try:
+                        n = int(payload.strip())
+                    except (ValueError, TypeError):
+                        n = MAX_EXTEND_PER_ASK
+                    n = max(1, min(n, MAX_EXTEND_PER_ASK))
+                    max_steps += n
+                    extends_asked += 1
+                    extended = True
+                    logger.info(
+                        f"[REFLECTION] EXTEND +{n} шагов → новый лимит {max_steps} "
+                        f"(запрос {extends_asked}/{MAX_EXTEND_ASKS})"
+                    )
+                else:
+                    remaining_commands.append((action, payload))
 
             search_results: list[str] = []
             wrote_something = False
-            for action, payload in commands:
+            for action, payload in remaining_commands:
                 if action == "SLEEP":
                     logger.info("[REFLECTION] Victor спит. Конец рефлексии.")
                     return
@@ -275,25 +317,29 @@ class ReflectionEngine:
                 elif action in ("WRITE_NOTE", "WRITE_IDENTITY", "SEND_MESSAGE", "SCHEDULE_MESSAGE"):
                     wrote_something = True
 
-            # Наращиваем контекст: что ты сделал → что получил → что дальше
             context += f"\n\n--- Шаг {step + 1} (ты сделал) ---\n{response}"
+
+            if extended:
+                context += f"\n\n(Добавлено шагов. Теперь у тебя {max_steps - step - 1} шагов впереди.)"
 
             if search_results:
                 combined = "\n\n".join(search_results)
                 feedback = self.prompts["continuation"].format(
                     result=combined,
-                    steps_left=steps_left - 1,
+                    steps_left=max_steps - step - 1,
                 )
                 context += f"\n\n--- Результаты ---\n{combined}\n\n{feedback}"
-            elif wrote_something:
+            elif wrote_something or extended:
                 feedback = self.prompts["after_action"].format(
-                    steps_left=steps_left - 1,
+                    steps_left=max_steps - step - 1,
                 )
                 context += f"\n\n{feedback}"
             else:
                 break
 
-        logger.info(f"[REFLECTION] Рефлексия завершена за {step + 1} шагов")
+            step += 1
+
+        logger.info(f"[REFLECTION] Рефлексия завершена за {step} шагов (лимит был {max_steps})")
 
     # ------------------------------------------------------------------
     # Awakening prompt
@@ -398,6 +444,9 @@ class ReflectionEngine:
             logger.info(f"[REFLECTION] SEARCH_NOTES: {len(results)} результатов")
             return formatted
 
+        elif action == "SEARCH_DIALOGUE":
+            return self._handle_search_dialogue(payload)
+
         elif action == "WEB_SEARCH":
             results = await web_search(payload, max_results=5)
             formatted = format_search_results(results)
@@ -427,6 +476,72 @@ class ReflectionEngine:
         else:
             logger.warning(f"[REFLECTION] Неизвестная команда: {action}")
             return None
+
+    def _handle_search_dialogue(self, payload: str) -> str:
+        """
+        Обработка [SEARCH_DIALOGUE: YYYY-MM-DD] или [SEARCH_DIALOGUE: YYYY-MM-DD..YYYY-MM-DD]
+        или [SEARCH_DIALOGUE: YYYY-MM-DD | текст].
+
+        Форматы payload:
+          - "2026-02-20"                    — все сообщения за этот день
+          - "2026-02-20..2026-02-25"        — диапазон дат
+          - "2026-02-20 | ключевое слово"   — за день + фильтр по тексту
+          - "2026-02-20..2026-02-25 | слово" — диапазон + фильтр
+        """
+        text_query = None
+        if "|" in payload:
+            date_part, text_query = payload.split("|", maxsplit=1)
+            date_part = date_part.strip()
+            text_query = text_query.strip() or None
+        else:
+            date_part = payload.strip()
+
+        date_from = None
+        date_to = None
+
+        try:
+            if ".." in date_part:
+                d1, d2 = date_part.split("..", maxsplit=1)
+                date_from = datetime.strptime(d1.strip(), "%Y-%m-%d")
+                date_to = datetime.strptime(d2.strip(), "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59,
+                )
+            else:
+                date_from = datetime.strptime(date_part.strip(), "%Y-%m-%d")
+                date_to = date_from.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            logger.warning(f"[REFLECTION] SEARCH_DIALOGUE: не удалось распарсить дату: {date_part}")
+            return f"Не удалось распознать дату: «{date_part}». Формат: YYYY-MM-DD или YYYY-MM-DD..YYYY-MM-DD"
+
+        try:
+            db = Database.get_instance()
+            with db.get_session() as session:
+                from infrastructure.database import DialogueRepository
+                repo = DialogueRepository(session)
+                messages = repo.search_by_date_range(
+                    account_id=self.account_id,
+                    date_from=date_from,
+                    date_to=date_to,
+                    text_query=text_query,
+                    limit=30,
+                )
+
+            if not messages:
+                return "Ничего не найдено в истории за этот период."
+
+            lines = []
+            for m in messages:
+                ts = m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else "?"
+                role_label = "Она" if m.role == "user" else "Ты"
+                text = m.text[:300] if m.text else ""
+                lines.append(f"[{ts}] {role_label}: {text}")
+
+            logger.info(f"[REFLECTION] SEARCH_DIALOGUE: {len(messages)} сообщений ({date_part})")
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.error(f"[REFLECTION] Ошибка SEARCH_DIALOGUE: {e}")
+            return f"Ошибка при поиске: {e}"
 
     def _handle_write_identity(self, payload: str) -> Optional[str]:
         """Обработка [WRITE_IDENTITY: раздел | текст]."""

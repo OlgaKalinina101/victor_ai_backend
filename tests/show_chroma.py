@@ -45,7 +45,7 @@ def inspect_collection(path: str, collection_name: str):
 if __name__ == "__main__":
     # Укажи свой путь и имя коллекции
     VECTOR_STORE_PATH = "C:/Users/Alien/PycharmProjects/Victor_AI_Core/infrastructure/vector_store"  # или settings.VECTOR_STORE_DIR
-    COLLECTION_NAME = settings.CHROMA_COLLECTION_NAME  # или settings.CHROMA_COLLECTION_NAME
+    COLLECTION_NAME = "key_info"  # или settings.CHROMA_COLLECTION_NAME
 
     inspect_collection(VECTOR_STORE_PATH, COLLECTION_NAME)
 
