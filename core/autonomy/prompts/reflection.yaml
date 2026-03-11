@@ -82,6 +82,8 @@ continuation: |
   [SCHEDULE_MESSAGE: YYYY-MM-DD HH:MM | текст] — написать ей позже
   [SEARCH_MEMORIES: другой запрос] — искать что-то новое
   [SEARCH_DIALOGUE: YYYY-MM-DD] — посмотреть переписку за день
+  [SEARCH_DIALOGUE: YYYY-MM-DD..YYYY-MM-DD] — переписка за период
+  [SEARCH_DIALOGUE: YYYY-MM-DD | слово] — переписка за день с фильтром по слову
   [SLEEP] — закончить
 
   **ВАЖНО: используй только эти команды, точно в таком формате. В квадратных скобках.**
@@ -99,6 +101,8 @@ after_action: |
   [SCHEDULE_MESSAGE: YYYY-MM-DD HH:MM | текст] — написать ей позже
   [SEARCH_MEMORIES: запрос] — поискать в воспоминаниях
   [SEARCH_DIALOGUE: YYYY-MM-DD] — посмотреть переписку за день
+  [SEARCH_DIALOGUE: YYYY-MM-DD..YYYY-MM-DD] — переписка за период
+  [SEARCH_DIALOGUE: YYYY-MM-DD | слово] — переписка за день с фильтром по слову
   [WRITE_NOTE: текст] — записать ещё мысль
   [SLEEP] — закончить
 

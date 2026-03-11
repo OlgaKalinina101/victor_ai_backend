@@ -223,4 +223,5 @@
 5. [debug_dataset&llm_providers.md](docs/debug_dataset%26llm_providers.md)   # llm провайдеры в проекте и что делать с отладочным датасетом.  
 6. [authorization&users.md](docs/autorization%26users.md)   # Как вообще зайти в веб демку или приложение, как дать Victor кому то еще.  
 7. [tools.md](docs/tools.md)   # Что может Victor кроме диалога.  
-8. [memory&vector_store.md](docs/memory%26vector_store.md)   # Как устроена память у Victor
+8. [memory&vector_store.md](docs/memory%26vector_store.md)   # Как устроена память у Victor  
+9. [reflection&autonomy.md](docs/reflection%26autonomy.md)   # Рефлексия, автономное мышление и внутренняя жизнь Victor

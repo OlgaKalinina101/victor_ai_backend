@@ -66,6 +66,29 @@ class IdentityMemory:
         parts = _split_sections(full_text)
         return parts.get(section, "")
 
+    def count_entries(self, section: str) -> int:
+        """Считает количество записей (блоков ``### ...``) в разделе."""
+        if section not in SECTIONS:
+            raise ValueError(f"Неизвестный раздел: {section}. Допустимые: {SECTIONS}")
+        body = self.read_section(section)
+        return len(re.findall(r"^### ", body, re.MULTILINE))
+
+    def replace_section(self, section: str, new_text: str) -> None:
+        """
+        Полностью заменяет тело раздела на new_text.
+
+        Используется только для автоматической консолидации, когда раздел
+        разросся и Victor объединил записи через LLM.
+        """
+        if section not in SECTIONS:
+            raise ValueError(f"Неизвестный раздел: {section}. Допустимые: {SECTIONS}")
+
+        full_text = self.read_full()
+        parts = _split_sections(full_text)
+        parts[section] = f"\n{new_text.strip()}\n"
+        self._write_assembled(parts)
+        logger.info(f"[IDENTITY] Раздел «{section}» перезаписан (консолидация) для {self.account_id}")
+
     def append(self, section: str, text: str, timestamp: Optional[datetime] = None) -> None:
         """
         Добавляет timestamped запись в указанный раздел.

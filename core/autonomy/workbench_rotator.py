@@ -285,6 +285,63 @@ async def rotate_with_llm(
     except Exception as e:
         logger.error(f"[ROTATION] Ошибка при identity review: {e}")
 
+    # Шаг 3.5: Консолидация разросшихся разделов identity.md
+    CONSOLIDATION_THRESHOLD = 10
+    try:
+        identity = IdentityMemory(account_id=account_id)
+        for section in SECTIONS:
+            entry_count = identity.count_entries(section)
+            if entry_count < CONSOLIDATION_THRESHOLD:
+                continue
+
+            logger.info(
+                f"[ROTATION] Консолидация «{section}»: {entry_count} записей "
+                f"(порог {CONSOLIDATION_THRESHOLD})"
+            )
+            section_content = identity.read_section(section)
+            full_identity = identity.read_full()
+
+            consolidate_prompt = prompts["rotation_identity_consolidate"].format(
+                section=section,
+                entry_count=entry_count,
+                full_identity=full_identity,
+                section_content=section_content,
+                notes=notes_block,
+            )
+            system = _build_system_prompt(
+                session_context,
+                f"Ты консолидируешь раздел «{section}» в своей глубинной памяти.",
+            )
+
+            consolidate_response = await llm_client.get_response(
+                system_prompt=system,
+                context_prompt=consolidate_prompt,
+                temperature=0.3,
+                max_tokens=1000,
+            )
+
+            if consolidate_response and consolidate_response.strip():
+                lines = [
+                    ln.strip() for ln in consolidate_response.strip().splitlines()
+                    if ln.strip() and ln.strip().startswith("- ")
+                ]
+                if len(lines) >= 2:
+                    new_body = "\n".join(lines)
+                    identity.replace_section(section, new_body)
+                    result["identity_updated"] = True
+                    logger.info(
+                        f"[ROTATION] Консолидация «{section}»: "
+                        f"{entry_count} записей → {len(lines)} пунктов"
+                    )
+                else:
+                    logger.warning(
+                        f"[ROTATION] Консолидация «{section}»: "
+                        f"LLM вернул {len(lines)} пунктов, пропускаем"
+                    )
+
+    except Exception as e:
+        logger.error(f"[ROTATION] Ошибка при консолидации identity: {e}")
+
     # Шаг 4: System prompt review
     try:
         prompt = prompts["rotation_system_prompt_review"].format(
