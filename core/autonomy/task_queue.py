@@ -53,6 +53,26 @@ class TaskQueue:
 
         with self.db.get_session() as session:
             repo = TaskRepository(session)
+            if trigger_type == VictorTaskTrigger.TIME and trigger_value:
+                pending_same_time = repo.get_pending_time_by_value(self.account_id, trigger_value)
+                exact_duplicate = next(
+                    (t for t in pending_same_time if t.text.strip() == text),
+                    None,
+                )
+                if exact_duplicate:
+                    logger.info(
+                        f"[TASK] Пропуск exact duplicate: #{exact_duplicate.id} "
+                        f"на {trigger_value} уже существует"
+                    )
+                    return exact_duplicate
+
+                if pending_same_time:
+                    repo.cancel_tasks([t.id for t in pending_same_time])
+                    logger.info(
+                        f"[TASK] Отменены предыдущие TIME-задачи на {trigger_value} "
+                        f"перед созданием новой"
+                    )
+
             return repo.create(
                 account_id=self.account_id,
                 text=text,
@@ -82,20 +102,17 @@ class TaskQueue:
             repo.mark_done(task_id)
 
     def cancel_duplicate_time_task(self, trigger_value: str, source: str | None = None) -> int:
-        """Отменяет pending TIME-задачи с тем же trigger_value (временем). Возвращает количество."""
+        """Отменяет все pending TIME-задачи на то же время. source оставлен для совместимости."""
         with self.db.get_session() as session:
             repo = TaskRepository(session)
-            tasks = repo.get_pending_by_trigger(self.account_id, VictorTaskTrigger.TIME)
-            duplicates = [
-                t for t in tasks
-                if t.trigger_value and t.trigger_value.strip() == trigger_value.strip()
-                and (source is None or t.source == source)
-            ]
-            for t in duplicates:
-                repo.mark_cancelled(t.id)
-            if duplicates:
-                logger.info(f"[TASK] Отменено {len(duplicates)} дублей на {trigger_value} (source={source})")
-            return len(duplicates)
+            duplicates = repo.get_pending_time_by_value(self.account_id, trigger_value.strip())
+            cancelled = repo.cancel_tasks([t.id for t in duplicates])
+            if cancelled:
+                logger.info(
+                    f"[TASK] Отменено {cancelled} дублей на {trigger_value} "
+                    f"(source={source}, ignored)"
+                )
+            return cancelled
 
     def format_for_prompt(self, tasks: list[VictorTask]) -> str:
         """Форматирует список задач для промпта рефлексии."""

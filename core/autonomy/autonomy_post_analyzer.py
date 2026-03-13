@@ -140,7 +140,7 @@ class AutonomyPostAnalyzer:
     # ------------------------------------------------------------------
 
     def _build_pending_pushes_block(self) -> str:
-        """Формирует блок: уже отправленные пуши за сегодня + запланированные (pending)."""
+        """Формирует блок: уже отправленные сегодня + pending-пуши на сегодня."""
         lines: list[str] = []
 
         # 1. Уже отправленные сегодня (reflection + scheduled из dialogue_history)
@@ -174,12 +174,18 @@ class AutonomyPostAnalyzer:
         except Exception as e:
             logger.warning(f"[AUTONOMY] Не удалось загрузить отправленные пуши: {e}")
 
-        # 2. Запланированные (ещё не отправлены)
+        # 2. Запланированные на сегодня (ещё не отправлены)
         try:
             tasks = self.task_queue.get_pending()
-            time_tasks = [t for t in tasks if t.trigger_type == VictorTaskTrigger.TIME]
+            today_prefix = datetime.now().strftime("%Y-%m-%d")
+            time_tasks = [
+                t for t in tasks
+                if t.trigger_type == VictorTaskTrigger.TIME
+                and t.trigger_value
+                and t.trigger_value.strip().startswith(today_prefix)
+            ]
             if time_tasks:
-                lines.append("Запланированные сообщения (ещё не отправлены):")
+                lines.append("Запланированные на сегодня сообщения (ещё не отправлены):")
                 for t in time_tasks:
                     lines.append(f"  - на {t.trigger_value}: «{t.text[:80]}{'...' if len(t.text) > 80 else ''}»")
         except Exception as e:
@@ -209,7 +215,6 @@ class AutonomyPostAnalyzer:
             time_str = match.group(1).strip()
             message_text = match.group(2).strip()
             try:
-                self.task_queue.cancel_duplicate_time_task(time_str, source="postanalysis")
                 self.task_queue.create_from_payload(
                     f"{message_text} | time:{time_str}",
                     source="postanalysis",

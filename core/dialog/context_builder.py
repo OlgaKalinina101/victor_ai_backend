@@ -126,11 +126,11 @@ class ContextBuilder:
             p.append(self.context_block["depth_block"].format(emotional_acess_block=depth.strip()))
 
         # 3. Mind block (focus phrases)
-        focus = self.extract_focus_candidates(metadata.emotional_anchor, metadata.focus_phrases)
-        if focus:
-            mind_text = self.format_focus_list(focus)
-            logger.debug(f"mind_text: {mind_text}")
-            p.append(self.context_block["mind_block"].format(mind_fragment=mind_text).strip())
+        # focus = self.extract_focus_candidates(metadata.emotional_anchor, metadata.focus_phrases)
+        # if focus:
+        #     mind_text = self.format_focus_list(focus)
+        #     logger.debug(f"mind_text: {mind_text}")
+        #     p.append(self.context_block["mind_block"].format(mind_fragment=mind_text).strip())
 
         # 4. Memory block
         if metadata.memories:

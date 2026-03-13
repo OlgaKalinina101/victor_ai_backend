@@ -208,7 +208,7 @@ async def _reflection_worker() -> None:
                 db_session.close()
 
             # Проверка cooldown: прошло ли достаточно времени с последнего сообщения
-            last_msg = session_context.last_assistant_message
+            last_msg = session_context.last_update
             if last_msg:
                 if last_msg.tzinfo is None:
                     since_last = datetime.now() - last_msg
@@ -279,7 +279,9 @@ async def _validate_scheduled_push(
 
     from core.autonomy.workbench import Workbench
     from core.autonomy.workbench_rotator import _build_system_prompt
+    from infrastructure.database.models import DialogueHistory
     from infrastructure.llm.client import LLMClient
+    from sqlalchemy import desc
 
     prompts_path = Path(__file__).parent / "core" / "autonomy" / "prompts" / "post_analysis.yaml"
     with open(prompts_path, "r", encoding="utf-8") as f:
@@ -300,7 +302,33 @@ async def _validate_scheduled_push(
 
     last_update = session_context.last_update
     last_message_time = last_update.strftime("%Y-%m-%d %H:%M") if last_update else "неизвестно"
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now = datetime.now()
+    current_time = now.strftime("%Y-%m-%d %H:%M")
+
+    normalized_task_text = task_text.strip()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    same_text_warning = ""
+
+    db = Database.get_instance()
+    with db.get_session() as session:
+        same_text_sent_today = (
+            session.query(DialogueHistory)
+            .filter(
+                DialogueHistory.account_id == creator_id,
+                DialogueHistory.role == "assistant",
+                DialogueHistory.message_category.in_(["reflection", "scheduled"]),
+                DialogueHistory.created_at >= today_start,
+                DialogueHistory.text == normalized_task_text,
+            )
+            .order_by(desc(DialogueHistory.created_at))
+            .first()
+        )
+        if same_text_sent_today:
+            sent_time = same_text_sent_today.created_at.strftime("%H:%M") if same_text_sent_today.created_at else "сегодня"
+            same_text_warning = (
+                "Ты уже отправлял сегодня точно такое же сообщение "
+                f"(в {sent_time}). Возможно, ты хочешь сказать это другими словами."
+            )
 
     context_prompt = template.format(
         last_message_time=last_message_time,
@@ -308,6 +336,7 @@ async def _validate_scheduled_push(
         dialogue_history=dialogue_history,
         workbench_notes=workbench_notes,
         planned_message=task_text,
+        same_text_warning=same_text_warning or "Точно такого же сообщения сегодня ещё не было.",
     )
 
     system_prompt = _build_system_prompt(
@@ -357,7 +386,7 @@ async def _scheduled_push_worker() -> None:
     """
     from datetime import datetime, timedelta
     from infrastructure.database.repositories.task_repository import TaskRepository
-    from infrastructure.database.models import VictorTaskTrigger, VictorTaskStatus
+    from infrastructure.database.models import VictorTask, VictorTaskTrigger, VictorTaskStatus
     from infrastructure.pushi.push_notifications import send_pushy_notification
     from infrastructure.firebase.tokens import get_user_tokens
 
@@ -414,17 +443,67 @@ async def _scheduled_push_worker() -> None:
                         logger.info(f"[scheduled_push] Задача #{task_id} ОТМЕНЕНА Victor'ом")
                         continue
 
-                    # Сохраняем в dialogue_history
+                    normalized_final_text = final_text.strip()
+                    today_prefix = now.strftime("%Y-%m-%d")
+                    with db2.get_session() as session_pending:
+                        duplicate_pending_today = (
+                            session_pending.query(VictorTask)
+                            .filter(
+                                VictorTask.account_id == creator_id,
+                                VictorTask.status == VictorTaskStatus.PENDING,
+                                VictorTask.trigger_type == VictorTaskTrigger.TIME,
+                                VictorTask.text == normalized_final_text,
+                            )
+                            .all()
+                        )
+                        duplicate_pending_today = [
+                            t for t in duplicate_pending_today
+                            if t.trigger_value and t.trigger_value.strip().startswith(today_prefix)
+                        ]
+
+                    if duplicate_pending_today:
+                        logger.info(
+                            f"[scheduled_push] Задача #{task_id} пропущена: "
+                            f"такой же текст уже запланирован на сегодня "
+                            f"(task #{duplicate_pending_today[0].id})"
+                        )
+                        continue
+
+                    # Не дублируем одинаковый scheduled-текст в history за сегодня.
                     with db2.get_session() as session3:
                         try:
                             from infrastructure.database import DialogueRepository
-                            dialogue_repo = DialogueRepository(session3)
-                            dialogue_repo.save_message(
-                                account_id=creator_id,
-                                role="assistant",
-                                text=final_text,
-                                message_category="scheduled",
+                            from infrastructure.database.models import DialogueHistory
+                            from sqlalchemy import desc
+
+                            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                            existing_scheduled_today = (
+                                session3.query(DialogueHistory)
+                                .filter(
+                                    DialogueHistory.account_id == creator_id,
+                                    DialogueHistory.role == "assistant",
+                                    DialogueHistory.message_category == "scheduled",
+                                    DialogueHistory.created_at >= today_start,
+                                    DialogueHistory.text == normalized_final_text,
+                                )
+                                .order_by(desc(DialogueHistory.created_at))
+                                .first()
                             )
+
+                            if existing_scheduled_today:
+                                logger.info(
+                                    f"[scheduled_push] Повтор в dialogue_history пропущен для задачи #{task_id}: "
+                                    f"такой же scheduled-текст уже сохранён сегодня "
+                                    f"(message #{existing_scheduled_today.id})"
+                                )
+                            else:
+                                dialogue_repo = DialogueRepository(session3)
+                                dialogue_repo.save_message(
+                                    account_id=creator_id,
+                                    role="assistant",
+                                    text=final_text,
+                                    message_category="scheduled",
+                                )
                         except Exception as e:
                             logger.warning(f"[scheduled_push] Ошибка записи в dialogue_history: {e}")
 

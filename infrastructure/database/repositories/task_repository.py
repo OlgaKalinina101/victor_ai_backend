@@ -78,6 +78,41 @@ class TaskRepository:
             .all()
         )
 
+    def get_pending_time_by_value(
+        self,
+        account_id: str,
+        trigger_value: str,
+    ) -> list[VictorTask]:
+        """Возвращает pending TIME-задачи на конкретное время."""
+        return (
+            self.session.query(VictorTask)
+            .filter(
+                VictorTask.account_id == account_id,
+                VictorTask.status == VictorTaskStatus.PENDING,
+                VictorTask.trigger_type == VictorTaskTrigger.TIME,
+                VictorTask.trigger_value == trigger_value,
+            )
+            .order_by(VictorTask.created_at)
+            .all()
+        )
+
+    def cancel_tasks(self, task_ids: list[int]) -> int:
+        """Отменяет список задач одним commit. Возвращает количество."""
+        if not task_ids:
+            return 0
+
+        tasks = (
+            self.session.query(VictorTask)
+            .filter(VictorTask.id.in_(task_ids))
+            .all()
+        )
+        for task in tasks:
+            task.status = VictorTaskStatus.CANCELLED
+
+        self.session.commit()
+        logger.info(f"[TASK] Отменено задач: {len(tasks)}")
+        return len(tasks)
+
     def mark_done(self, task_id: int) -> None:
         """Помечает задачу как выполненную."""
         task = self.session.query(VictorTask).get(task_id)

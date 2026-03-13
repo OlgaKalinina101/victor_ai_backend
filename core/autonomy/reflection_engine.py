@@ -622,7 +622,6 @@ class ReflectionEngine:
         time_str = parts[0].strip()
         text = parts[1].strip()
         try:
-            self.task_queue.cancel_duplicate_time_task(time_str, source="reflection")
             self.task_queue.create_from_payload(
                 f"{text} | time:{time_str}",
                 source="reflection",
