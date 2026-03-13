@@ -12,8 +12,7 @@
 # GNU Affero General Public License for more details.
 
 from core.analysis.preanalysis.analysis_prompts import (
-    ANALYZE_DIALOGUE_ANCHORS_PROMPT,
-    ANALYZE_DIALOGUE_FOCUS_PROMPT,
+    ANALYZE_DIALOGUE_ANCHOR_FOCUS_PROMPT,
     PROMPT_QUESTIONS_PROFILE,
     PROMPT_REACTION_CORE,
     PROMPT_REACTION_START,
@@ -316,12 +315,7 @@ class MessageAnalyzer:
                 self._analyze_emotion_structure(),
                 analyze_dialogue(
                     llm_client=self.llm_client_foundation,
-                    prompt_template=ANALYZE_DIALOGUE_FOCUS_PROMPT,
-                    user_message=self.user_message
-                ),
-                analyze_dialogue(
-                    llm_client=self.llm_client_foundation,
-                    prompt_template=ANALYZE_DIALOGUE_ANCHORS_PROMPT,
+                    prompt_template=ANALYZE_DIALOGUE_ANCHOR_FOCUS_PROMPT,
                     user_message=self.user_message
                 ),
                 analyze_dialogue(
@@ -365,7 +359,8 @@ class MessageAnalyzer:
                     self.logger.error(f"[ERROR] Ошибка в задаче анализа #{i}: {result}")
                     raise result
 
-            mood_data, focus_result, anchor_result, type_result, reaction_start_result, reaction_core_result, question_result, end_result, memories_result = results
+            mood_data, anchor_focus_result, type_result, reaction_start_result, reaction_core_result, question_result, end_result, memories_result = results
+            focus_result, anchor_result = self._split_anchor_focus_result(anchor_focus_result)
 
             return AnalysisResult(
                 mood_data=mood_data,
@@ -381,6 +376,44 @@ class MessageAnalyzer:
         except Exception as e:
             self.logger.error(f"[ERROR] Ошибка при анализе структуры диалога: {e}")
             raise
+
+    def _split_anchor_focus_result(self, result: Optional[Dict]) -> Tuple[Dict, Dict]:
+        """Разделяет объединённый JSON анализа на focus_result и anchor_result."""
+        if not isinstance(result, dict):
+            return {}, {}
+
+        anchor_result = {
+            "anchor_link": result.get("anchor_link"),
+            "is_strong_anchor": bool(result.get("is_strong_anchor", False)),
+        }
+
+        focus_points = result.get("focus_points")
+        if isinstance(focus_points, str):
+            focus_points = [focus_points]
+        elif isinstance(focus_points, (list, tuple)):
+            focus_points = list(focus_points)
+        else:
+            focus_points = []
+
+        is_strong_focus = result.get("is_strong_focus")
+        if isinstance(is_strong_focus, bool):
+            is_strong_focus = [is_strong_focus] * len(focus_points)
+        elif isinstance(is_strong_focus, (list, tuple)):
+            is_strong_focus = list(is_strong_focus)
+        else:
+            is_strong_focus = []
+
+        focus_result = {
+            "focus_points": focus_points,
+            "is_strong_focus": is_strong_focus,
+        }
+
+        if anchor_result["anchor_link"] is None:
+            anchor_result = {}
+        if not focus_points:
+            focus_result = {}
+
+        return focus_result, anchor_result
 
     async def _finalize_analysis(self) -> Tuple[UserProfile, MessageMetadata, ReactionFragments]:
         """Формирует объекты метаданных."""
